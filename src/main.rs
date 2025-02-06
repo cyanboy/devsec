@@ -1,7 +1,7 @@
 use std::{env, error::Error};
 
 use clap::{Parser, Subcommand};
-use gitlab::updater::{gitlab_update_languages, gitlab_update_projects};
+use gitlab::updater::GitLabUpdater;
 use sqlx::postgres::PgPoolOptions;
 
 extern crate chrono;
@@ -23,13 +23,13 @@ enum Commands {
         #[arg(long, value_name = "GITLAB_TOKEN")]
         auth: String,
 
-        #[arg(long, value_name = "Group id")]
+        #[arg(long, value_name = "GitLab group id")]
         group_id: Option<String>,
 
-        #[arg(long, requires = "group_id", help = "Get all projects in a group")]
+        #[arg(long, help = "Get all projects in a group")]
         update_projects: bool,
 
-        #[arg(long, help = "Get all projects in a group")]
+        #[arg(long, help = "Update languages for GitLab projects")]
         update_languages: bool,
     },
 }
@@ -48,20 +48,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
     match &cli.command {
         Commands::Gitlab {
             auth,
-            update_projects,
             group_id,
+            update_projects,
             update_languages,
         } => {
-            if *update_projects && group_id.is_some() {
-                let _projects =
-                    gitlab_update_projects(auth, group_id.clone().unwrap().as_str(), &pool)
-                        .await
-                        .map_err(|e| format!("Failed to fetch group projects: {}", e))?;
+            let gitlab_updater = GitLabUpdater::new(&auth, group_id.clone(), pool);
+
+            if *update_projects {
+                gitlab_updater
+                    .gitlab_update_projects()
+                    .await
+                    .map_err(|e| format!("Failed to fetch group projects: {}", e))?;
             }
 
             if *update_languages {
-                let languages = gitlab_update_languages(auth, &pool).await?;
-                println!("{:?}", languages);
+                gitlab_updater.gitlab_update_languages().await?;
             }
         }
     };

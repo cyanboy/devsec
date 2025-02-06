@@ -1,5 +1,5 @@
 # devsec-cli
-A command line tool for DevSecOpso
+A command line tool for DevSecOps
 
 ## Usage
 ```
