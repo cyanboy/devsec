@@ -6,12 +6,13 @@ use reqwest::{
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::codebase::Codebase;
+use crate::db::Codebase;
 
-const GITLAB_URL: &str = "https://gitlab.com/api/v4";
 pub const TOTAL_PAGES_HEADER: &str = "x-total-pages";
 pub const PER_PAGE_MAX: u8 = 100;
-pub const GITLAB_PROJECT_RATE_LIMIT: u32 = 400;
+pub const GITLAB_PROJECT_RATE_LIMIT: u32 = 200;
+
+const GITLAB_URL: &str = "https://gitlab.com/api/v4";
 
 pub struct Api {
     client: Client,

@@ -1,20 +1,18 @@
 use governor::{Jitter, Quota, RateLimiter};
 use indicatif::ProgressBar;
 use nonzero_ext::nonzero;
+use rand::Rng;
 use reqwest::header::HeaderMap;
 use sqlx::PgPool;
 use std::time::Duration;
 use std::{error::Error, sync::Arc};
 use tokio::{sync::Mutex, task::JoinSet};
 
-use crate::codebase::{
-    get_codebases, get_codebases_without_languages, insert_codebase, insert_codebase_language,
-    insert_language, Codebase,
+use crate::db::{
+    get_all_codebase_ids, insert_codebase, insert_codebase_language, insert_language, Codebase,
 };
-use crate::gitlab::api::{Api, PER_PAGE_MAX, TOTAL_PAGES_HEADER};
+use crate::gitlab::api::{Api, GITLAB_PROJECT_RATE_LIMIT, PER_PAGE_MAX, TOTAL_PAGES_HEADER};
 use crate::progress_bar::style_progress_bar;
-
-use super::api::GITLAB_PROJECT_RATE_LIMIT;
 
 pub struct GitLabUpdater {
     api: Arc<Api>,
@@ -101,26 +99,31 @@ impl GitLabUpdater {
             GITLAB_PROJECT_RATE_LIMIT
         ))));
 
-        let codebases = get_codebases(&self.pool).await?;
+        let codebase_ids = get_all_codebase_ids(&self.pool).await?;
 
-        let progress_bar = ProgressBar::new(codebases.len() as u64);
+        let progress_bar = ProgressBar::new(codebase_ids.len() as u64);
         style_progress_bar(&progress_bar);
 
         let mut set = JoinSet::new();
 
-        for codebase in codebases {
+        for codebase_id in codebase_ids {
             let api = Arc::clone(&self.api);
             let bucket = Arc::clone(&bucket);
 
             set.spawn(async move {
-                let jitter = Jitter::new(Duration::from_secs(1), Duration::from_secs(1));
+                let jitter = {
+                    let min = Duration::from_millis(rand::rng().random_range(500..=1500));
+                    Jitter::new(min, min)
+                };
                 bucket.until_ready_with_jitter(jitter).await;
-                let languages = api.gitlab_languages_get(codebase.id).await;
-                (codebase.id, languages)
+                let languages = api.gitlab_languages_get(codebase_id).await;
+                (codebase_id, languages)
             });
         }
 
         while let Some(res) = set.join_next().await {
+            let tx = self.pool.begin().await?;
+
             let (id, languages) = res.unwrap();
             progress_bar.inc(1);
 
@@ -128,6 +131,8 @@ impl GitLabUpdater {
                 let language_id = insert_language(&self.pool, &lang).await?;
                 insert_codebase_language(&self.pool, id, language_id, percent).await?;
             }
+
+            tx.commit().await?;
         }
 
         progress_bar.finish_with_message("Completed!");

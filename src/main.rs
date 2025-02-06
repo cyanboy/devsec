@@ -1,12 +1,17 @@
 use std::{env, error::Error};
 
 use clap::{Parser, Subcommand};
+use db::get_most_frequent_languages;
 use gitlab::updater::GitLabUpdater;
 use sqlx::postgres::PgPoolOptions;
+use tabled::{
+    settings::{object::Columns, Alignment, Style},
+    Table,
+};
 
 extern crate chrono;
 
-mod codebase;
+mod db;
 mod gitlab;
 mod progress_bar;
 
@@ -32,6 +37,7 @@ enum Commands {
         #[arg(long, help = "Update languages for GitLab projects")]
         update_languages: bool,
     },
+    Stats,
 }
 
 #[tokio::main]
@@ -53,17 +59,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
             update_languages,
         } => {
             let gitlab_updater = GitLabUpdater::new(&auth, group_id.clone(), pool);
-
             if *update_projects {
                 gitlab_updater
                     .gitlab_update_projects()
                     .await
                     .map_err(|e| format!("Failed to fetch group projects: {}", e))?;
             }
-
             if *update_languages {
                 gitlab_updater.gitlab_update_languages().await?;
             }
+        }
+        Commands::Stats => {
+            let most_used = get_most_frequent_languages(&pool).await?;
+            let table = Table::new(most_used).with(Style::modern()).to_string();
+
+            println!("{}", table)
         }
     };
 
