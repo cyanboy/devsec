@@ -54,6 +54,26 @@ pub async fn insert_codebase(pool: &PgPool, codebase: Codebase) -> Result<i32, s
     Ok(rec.id)
 }
 
+pub async fn get_codebases_without_languages(
+    pool: &PgPool,
+) -> Result<Vec<Codebase>, sqlx::error::Error> {
+    let codebases = sqlx::query_as!(
+        Codebase,
+        r#"
+        SELECT *
+        FROM codebases c
+        WHERE NOT EXISTS (
+            SELECT 1 FROM codebase_languages cl
+            WHERE cl.codebase_id = c.id
+        )
+        "#
+    )
+    .fetch_all(pool)
+    .await?;
+
+    Ok(codebases)
+}
+
 pub async fn get_codebases(pool: &PgPool) -> Result<Vec<Codebase>, sqlx::error::Error> {
     let codebases = sqlx::query_as!(
         Codebase,

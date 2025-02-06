@@ -1,4 +1,6 @@
+use governor::{Jitter, Quota, RateLimiter};
 use indicatif::ProgressBar;
+use nonzero_ext::nonzero;
 use reqwest::header::HeaderMap;
 use sqlx::PgPool;
 use std::time::Duration;
@@ -6,10 +8,13 @@ use std::{error::Error, sync::Arc};
 use tokio::{sync::Mutex, task::JoinSet};
 
 use crate::codebase::{
-    get_codebases, insert_codebase, insert_codebase_language, insert_language, Codebase,
+    get_codebases, get_codebases_without_languages, insert_codebase, insert_codebase_language,
+    insert_language, Codebase,
 };
 use crate::gitlab::api::{Api, PER_PAGE_MAX, TOTAL_PAGES_HEADER};
 use crate::progress_bar::style_progress_bar;
+
+use super::api::GITLAB_PROJECT_RATE_LIMIT;
 
 pub struct GitLabUpdater {
     api: Arc<Api>,
@@ -37,6 +42,7 @@ impl GitLabUpdater {
         let (projects, total_pages) = {
             let pb = progress_bar.lock().await;
             style_progress_bar(&pb);
+
             let (headers, projects) = self
                 .api
                 .groups_projects_get(&group_id, 1, PER_PAGE_MAX, true)
@@ -91,22 +97,37 @@ impl GitLabUpdater {
     }
 
     pub async fn gitlab_update_languages(&self) -> Result<(), Box<dyn Error>> {
+        let bucket = Arc::new(RateLimiter::direct(Quota::per_minute(nonzero!(
+            GITLAB_PROJECT_RATE_LIMIT
+        ))));
+
         let codebases = get_codebases(&self.pool).await?;
 
         let progress_bar = ProgressBar::new(codebases.len() as u64);
         style_progress_bar(&progress_bar);
 
+        let mut set = JoinSet::new();
+
         for codebase in codebases {
             let api = Arc::clone(&self.api);
-            let pool = Arc::clone(&self.pool);
+            let bucket = Arc::clone(&bucket);
 
-            let languages = api.gitlab_languages_get(codebase.id).await?;
+            set.spawn(async move {
+                let jitter = Jitter::new(Duration::from_secs(1), Duration::from_secs(1));
+                bucket.until_ready_with_jitter(jitter).await;
+                let languages = api.gitlab_languages_get(codebase.id).await;
+                (codebase.id, languages)
+            });
+        }
 
-            for (lang, percent) in languages {
-                let language_id = insert_language(&pool, &lang).await?;
-                insert_codebase_language(&pool, codebase.id, language_id, percent).await?;
-            }
+        while let Some(res) = set.join_next().await {
+            let (id, languages) = res.unwrap();
             progress_bar.inc(1);
+
+            for (lang, percent) in languages.unwrap() {
+                let language_id = insert_language(&self.pool, &lang).await?;
+                insert_codebase_language(&self.pool, id, language_id, percent).await?;
+            }
         }
 
         progress_bar.finish_with_message("Completed!");

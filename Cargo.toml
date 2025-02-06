@@ -7,7 +7,10 @@ edition = "2021"
 chrono = { version = "0.4", features = ["serde"] }
 clap = { version = "4.5", features = ["derive", "env"] }
 dotenvy = "0.15"
+governor = "0.8.0"
+hyper = { version = "1", features = ["full"] }
 indicatif = "0.17"
+nonzero_ext = "0.3.0"
 reqwest = { version = "0.12", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
 sqlx = { version = "0.8", features = [
@@ -18,3 +21,4 @@ sqlx = { version = "0.8", features = [
     "bigdecimal",
 ] }
 tokio = { version = "1", features = ["full"] }
+tower = { version = "0.5", features = ["limit"] }
