@@ -1,5 +1,7 @@
+use indicatif::ProgressBar;
 use reqwest::header::HeaderMap;
 use sqlx::PgPool;
+use std::time::Duration;
 use std::{error::Error, sync::Arc};
 use tokio::{sync::Mutex, task::JoinSet};
 
@@ -7,7 +9,7 @@ use crate::codebase::{
     get_codebases, insert_codebase, insert_codebase_language, insert_language, Codebase,
 };
 use crate::gitlab::api::{Api, PER_PAGE_MAX, TOTAL_PAGES_HEADER};
-use crate::progress_bar::create_progress_bar;
+use crate::progress_bar::style_progress_bar;
 
 pub struct GitLabUpdater {
     api: Arc<Api>,
@@ -28,25 +30,30 @@ impl GitLabUpdater {
     }
 
     pub async fn gitlab_update_projects(&self) -> Result<(), Box<dyn Error>> {
+        let progress_bar = Arc::new(Mutex::new(ProgressBar::no_length()));
+
         let group_id = Arc::new(self.group_id.clone().expect("missing gitlab token"));
 
-        let (headers, projects) = self
-            .api
-            .groups_projects_get(&group_id, 1, PER_PAGE_MAX, true)
-            .await?;
+        let (projects, total_pages) = {
+            let pb = progress_bar.lock().await;
+            style_progress_bar(&pb);
+            let (headers, projects) = self
+                .api
+                .groups_projects_get(&group_id, 1, PER_PAGE_MAX, true)
+                .await?;
 
-        let total_pages = parse_total_pages_header(&headers).unwrap_or(1);
+            let total_pages = parse_total_pages_header(&headers).unwrap_or(1);
+            pb.set_length(total_pages as u64);
+            pb.inc(1);
 
-        let progress_bar = Arc::new(Mutex::new(create_progress_bar(total_pages as u64)));
+            (projects, total_pages)
+        };
+
         let tx = self.pool.begin().await?;
 
-        {
-            let pb = progress_bar.lock().await;
-            for project in projects {
-                let repo = project.to_repository();
-                insert_codebase(&self.pool, repo).await?;
-            }
-            pb.inc(1);
+        for project in projects {
+            let repo = project.to_repository();
+            insert_codebase(&self.pool, repo).await?;
         }
 
         let page_numbers: Vec<i32> = (2..=total_pages).collect();
@@ -86,7 +93,8 @@ impl GitLabUpdater {
     pub async fn gitlab_update_languages(&self) -> Result<(), Box<dyn Error>> {
         let codebases = get_codebases(&self.pool).await?;
 
-        let progress_bar = create_progress_bar(codebases.len() as u64);
+        let progress_bar = ProgressBar::new(codebases.len() as u64);
+        style_progress_bar(&progress_bar);
 
         for codebase in codebases {
             let api = Arc::clone(&self.api);

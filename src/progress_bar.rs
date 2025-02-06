@@ -1,8 +1,8 @@
+use std::time::Duration;
+
 use indicatif::{ProgressBar, ProgressState, ProgressStyle};
 
-pub fn create_progress_bar(len: u64) -> ProgressBar {
-    let pb = ProgressBar::new(len);
-
+pub fn style_progress_bar(pb: &ProgressBar) {
     pb.set_style(
         ProgressStyle::with_template(
             "{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{len} ({eta})",
@@ -17,5 +17,5 @@ pub fn create_progress_bar(len: u64) -> ProgressBar {
         .progress_chars("#>-"),
     );
 
-    pb
+    pb.enable_steady_tick(Duration::from_millis(100));
 }

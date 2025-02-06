@@ -20,13 +20,13 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     Gitlab {
-        #[arg(long, value_name = "GITLAB_TOKEN")]
+        #[arg(long, value_name = "GITLAB_TOKEN", env = "GITLAB_TOKEN")]
         auth: String,
 
-        #[arg(long, value_name = "GitLab group id")]
+        #[arg(long, value_name = "GitLab group id", env = "GITLAB_GROUP_ID")]
         group_id: Option<String>,
 
-        #[arg(long, help = "Get all projects in a group")]
+        #[arg(long, requires = "group_id", help = "Get all projects in a group")]
         update_projects: bool,
 
         #[arg(long, help = "Update languages for GitLab projects")]
