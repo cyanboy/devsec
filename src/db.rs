@@ -1,5 +1,3 @@
-use std::fmt;
-
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 
@@ -123,20 +121,9 @@ pub async fn insert_codebase_language(
     Ok(())
 }
 
-pub struct Language {
-    name: String,
-    usage: f64,
-}
-
-impl fmt::Display for Language {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}: {:.4}%", self.name, self.usage)
-    }
-}
-
 pub async fn get_most_frequent_languages(
     pool: &PgPool,
-) -> Result<Vec<Language>, sqlx::error::Error> {
+) -> Result<Vec<(String, f64)>, sqlx::error::Error> {
     let results = sqlx::query!(
         r#"
         SELECT 
@@ -152,10 +139,7 @@ pub async fn get_most_frequent_languages(
     .await?;
 
     Ok(results
-        .into_iter()
-        .map(|row| Language {
-            name: row.language_name,
-            usage: row.usage.unwrap_or(0.0),
-        })
+        .iter()
+        .map(|row| (row.language_name.clone(), row.usage.unwrap_or(0.0)))
         .collect())
 }
