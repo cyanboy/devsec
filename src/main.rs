@@ -4,10 +4,6 @@ use clap::{Parser, Subcommand};
 use db::get_most_frequent_languages;
 use gitlab::updater::GitLabUpdater;
 use sqlx::postgres::PgPoolOptions;
-use tabled::{
-    settings::{object::Columns, Alignment, Style},
-    Table,
-};
 
 extern crate chrono;
 
@@ -71,9 +67,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
         Commands::Stats => {
             let most_used = get_most_frequent_languages(&pool).await?;
-            let table = Table::new(most_used).with(Style::modern()).to_string();
 
-            println!("{}", table)
+            most_used.iter().for_each(|lang| println!("{}", lang));
         }
     };
 

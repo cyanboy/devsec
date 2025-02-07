@@ -107,7 +107,7 @@ impl Project {
     pub fn to_repository(&self) -> Codebase {
         Codebase {
             id: self.id,
-            name: self.name.clone(),
+            repo_name: self.name.clone(),
             full_name: self.path_with_namespace.clone(),
             created_at: self.created_at,
             updated_at: self.updated_at,

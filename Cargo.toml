@@ -21,5 +21,4 @@ sqlx = { version = "0.8", features = [
     "chrono",
     "bigdecimal",
 ] }
-tabled = { version = "0.17.0", features = ["ansi"] }
 tokio = { version = "1", features = ["full"] }
