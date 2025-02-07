@@ -1,21 +1,33 @@
 use chrono::{DateTime, Utc};
+use governor::{
+    clock::{QuantaClock, QuantaInstant},
+    middleware::NoOpMiddleware,
+    state::{InMemoryState, NotKeyed},
+    Jitter, Quota, RateLimiter,
+};
+use rand::Rng;
 use reqwest::{
     header::{HeaderMap, HeaderValue, AUTHORIZATION},
     Client,
 };
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{collections::HashMap, num::NonZeroU32, time::Duration};
 
 use crate::db::Codebase;
 
 pub const TOTAL_PAGES_HEADER: &str = "x-total-pages";
 pub const PER_PAGE_MAX: u8 = 100;
-pub const GITLAB_PROJECT_RATE_LIMIT: u32 = 240;
 
 const GITLAB_URL: &str = "https://gitlab.com/api/v4";
+const PROJECTS_LANGUAGES_RATE_LIMIT: u32 = 200;
+const GROUPS_PROJECTS_RATE_LIMIT: u32 = 600;
 
 pub struct Api {
     client: Client,
+    languages_rate_limit:
+        RateLimiter<NotKeyed, InMemoryState, QuantaClock, NoOpMiddleware<QuantaInstant>>,
+    projects_rate_limit:
+        RateLimiter<NotKeyed, InMemoryState, QuantaClock, NoOpMiddleware<QuantaInstant>>,
 }
 
 impl Api {
@@ -34,10 +46,25 @@ impl Api {
             .build()
             .expect("Could not create client");
 
-        Self { client }
+        let languages_rate_limit = Self::create_rate_limit(PROJECTS_LANGUAGES_RATE_LIMIT);
+        let group_projects_rate_limit = Self::create_rate_limit(GROUPS_PROJECTS_RATE_LIMIT);
+
+        Self {
+            client,
+            languages_rate_limit,
+            projects_rate_limit: group_projects_rate_limit,
+        }
     }
 
-    pub async fn groups_projects_get(
+    fn create_rate_limit(
+        rate_limit: u32,
+    ) -> RateLimiter<NotKeyed, InMemoryState, QuantaClock, NoOpMiddleware<QuantaInstant>> {
+        let rate_limit = NonZeroU32::new(rate_limit).unwrap();
+
+        RateLimiter::direct(Quota::per_minute(rate_limit))
+    }
+
+    pub async fn get_groups_projects(
         &self,
         group: &str,
         page: i32,
@@ -49,6 +76,15 @@ impl Api {
         let page = page.to_string();
         let per_page = per_page.to_string();
         let include_subgroups = include_subgroups.to_string();
+
+        let rate_limit = &self.projects_rate_limit;
+
+        let jitter = {
+            let min = Duration::from_millis(rand::rng().random_range(500..=1500));
+            Jitter::new(min, min)
+        };
+
+        rate_limit.until_ready_with_jitter(jitter).await;
 
         let response = self
             .client
@@ -73,9 +109,21 @@ impl Api {
     ) -> Result<HashMap<String, f32>, reqwest::Error> {
         let languages_url = format!("{}/projects/{}/languages", GITLAB_URL, project_id);
 
-        let response = self.client.get(languages_url).send().await?;
+        let rate_limit = &self.languages_rate_limit;
 
-        response.json::<HashMap<String, f32>>().await
+        let jitter = {
+            let min = Duration::from_millis(rand::rng().random_range(500..=1500));
+            Jitter::new(min, min)
+        };
+
+        rate_limit.until_ready_with_jitter(jitter).await;
+
+        self.client
+            .get(languages_url)
+            .send()
+            .await?
+            .json::<HashMap<String, f32>>()
+            .await
     }
 }
 

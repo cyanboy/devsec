@@ -1,17 +1,13 @@
-use governor::{Jitter, Quota, RateLimiter};
 use indicatif::ProgressBar;
-use nonzero_ext::nonzero;
-use rand::Rng;
 use reqwest::header::HeaderMap;
 use sqlx::PgPool;
-use std::time::Duration;
 use std::{error::Error, sync::Arc};
 use tokio::{sync::Mutex, task::JoinSet};
 
 use crate::db::{
     get_all_codebase_ids, insert_codebase, insert_codebase_language, insert_language, Codebase,
 };
-use crate::gitlab::api::{Api, GITLAB_PROJECT_RATE_LIMIT, PER_PAGE_MAX, TOTAL_PAGES_HEADER};
+use crate::gitlab::api::{Api, PER_PAGE_MAX, TOTAL_PAGES_HEADER};
 use crate::progress_bar::style_progress_bar;
 
 pub struct GitLabUpdater {
@@ -35,30 +31,32 @@ impl GitLabUpdater {
     pub async fn gitlab_update_projects(&self) -> Result<(), Box<dyn Error>> {
         let progress_bar = Arc::new(Mutex::new(ProgressBar::no_length()));
 
-        let group_id = Arc::new(self.group_id.clone().expect("missing gitlab token"));
+        let group_id = Arc::new(self.group_id.clone().expect("missing group id"));
 
-        let (projects, total_pages) = {
+        let total_pages = {
             let pb = progress_bar.lock().await;
             style_progress_bar(&pb);
 
             let (headers, projects) = self
                 .api
-                .groups_projects_get(&group_id, 1, PER_PAGE_MAX, true)
+                .get_groups_projects(&group_id, 1, PER_PAGE_MAX, true)
                 .await?;
 
             let total_pages = parse_total_pages_header(&headers).unwrap_or(1);
             pb.set_length(total_pages as u64);
             pb.inc(1);
 
-            (projects, total_pages)
+            let tx = self.pool.begin().await?;
+
+            for project in projects {
+                let repo = project.to_repository();
+                insert_codebase(&self.pool, repo).await?;
+            }
+
+            tx.commit().await?;
+
+            total_pages
         };
-
-        let tx = self.pool.begin().await?;
-
-        for project in projects {
-            let repo = project.to_repository();
-            insert_codebase(&self.pool, repo).await?;
-        }
 
         let page_numbers: Vec<i32> = (2..=total_pages).collect();
 
@@ -71,7 +69,7 @@ impl GitLabUpdater {
 
             set.spawn(async move {
                 let (_, projects) = api
-                    .groups_projects_get(&group_id, page, PER_PAGE_MAX, true)
+                    .get_groups_projects(&group_id, page, PER_PAGE_MAX, true)
                     .await
                     .unwrap();
 
@@ -80,25 +78,22 @@ impl GitLabUpdater {
             });
         }
 
-        let repositories = set.join_all().await;
+        while let Some(codebases) = set.join_next().await {
+            let tx = self.pool.begin().await?;
 
-        for repo in repositories.into_iter().flatten() {
-            insert_codebase(&self.pool, repo)
-                .await
-                .expect("Failed to insert repository");
+            for codebase in codebases? {
+                insert_codebase(&self.pool, codebase).await?;
+            }
+
+            tx.commit().await?;
         }
 
         progress_bar.lock().await.finish_with_message("Completed!");
-        tx.commit().await?;
 
         Ok(())
     }
 
     pub async fn gitlab_update_languages(&self) -> Result<(), Box<dyn Error>> {
-        let bucket = Arc::new(RateLimiter::direct(Quota::per_minute(nonzero!(
-            GITLAB_PROJECT_RATE_LIMIT
-        ))));
-
         let codebase_ids = get_all_codebase_ids(&self.pool).await?;
 
         let progress_bar = ProgressBar::new(codebase_ids.len() as u64);
@@ -108,14 +103,8 @@ impl GitLabUpdater {
 
         for codebase_id in codebase_ids {
             let api = Arc::clone(&self.api);
-            let bucket = Arc::clone(&bucket);
 
             set.spawn(async move {
-                let jitter = {
-                    let min = Duration::from_millis(rand::rng().random_range(500..=1500));
-                    Jitter::new(min, min)
-                };
-                bucket.until_ready_with_jitter(jitter).await;
                 let languages = api.gitlab_languages_get(codebase_id).await;
                 (codebase_id, languages)
             });
@@ -124,10 +113,10 @@ impl GitLabUpdater {
         while let Some(res) = set.join_next().await {
             let tx = self.pool.begin().await?;
 
-            let (id, languages) = res.unwrap();
+            let (id, languages) = res?;
             progress_bar.inc(1);
 
-            for (lang, percent) in languages.unwrap() {
+            for (lang, percent) in languages? {
                 let language_id = insert_language(&self.pool, &lang).await?;
                 insert_codebase_language(&self.pool, id, language_id, percent).await?;
             }
