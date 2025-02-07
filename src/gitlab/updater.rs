@@ -2,7 +2,7 @@ use indicatif::ProgressBar;
 use reqwest::header::HeaderMap;
 use sqlx::PgPool;
 use std::{error::Error, sync::Arc};
-use tokio::{sync::Mutex, task::JoinSet};
+use tokio::task::JoinSet;
 
 use crate::db::{
     get_all_codebase_ids, insert_codebase, insert_codebase_language, insert_language, Codebase,
@@ -13,13 +13,14 @@ use crate::progress_bar::style_progress_bar;
 pub struct GitLabUpdater {
     api: Arc<Api>,
     pool: Arc<PgPool>,
-    group_id: Option<String>,
+    group_id: Arc<Option<String>>,
 }
 
 impl GitLabUpdater {
     pub fn new(gitlab_token: &str, group_id: Option<String>, pool: PgPool) -> GitLabUpdater {
         let api = Arc::new(Api::new(&gitlab_token));
-        let pool = Arc::new(pool.clone());
+        let pool = Arc::new(pool);
+        let group_id = Arc::new(group_id);
 
         GitLabUpdater {
             pool,
@@ -29,51 +30,42 @@ impl GitLabUpdater {
     }
 
     pub async fn gitlab_update_projects(&self) -> Result<(), Box<dyn Error>> {
-        let progress_bar = Arc::new(Mutex::new(ProgressBar::no_length()));
+        let progress_bar = ProgressBar::no_length();
+        style_progress_bar(&progress_bar);
 
-        let group_id = Arc::new(self.group_id.clone().expect("missing group id"));
+        let (headers, projects) = self
+            .api
+            .get_groups_projects(self.group_id.as_deref().unwrap(), 1, PER_PAGE_MAX, true)
+            .await?;
 
-        let total_pages = {
-            let pb = progress_bar.lock().await;
-            style_progress_bar(&pb);
+        let total_pages = parse_total_pages_header(&headers).unwrap_or(1);
 
-            let (headers, projects) = self
-                .api
-                .get_groups_projects(&group_id, 1, PER_PAGE_MAX, true)
-                .await?;
+        let tx = self.pool.begin().await?;
 
-            let total_pages = parse_total_pages_header(&headers).unwrap_or(1);
-            pb.set_length(total_pages as u64);
-            pb.inc(1);
+        for project in projects {
+            let repo = project.to_repository();
+            insert_codebase(&self.pool, repo).await?;
+        }
 
-            let tx = self.pool.begin().await?;
+        tx.commit().await?;
 
-            for project in projects {
-                let repo = project.to_repository();
-                insert_codebase(&self.pool, repo).await?;
-            }
-
-            tx.commit().await?;
-
-            total_pages
-        };
+        progress_bar.set_length(total_pages as u64);
+        progress_bar.inc(1);
 
         let page_numbers: Vec<i32> = (2..=total_pages).collect();
 
         let mut set: JoinSet<Vec<Codebase>> = JoinSet::new();
 
         for page in page_numbers {
-            let progress_bar = Arc::clone(&progress_bar);
             let api = Arc::clone(&self.api);
-            let group_id = Arc::clone(&group_id);
+            let group_id = Arc::clone(&self.group_id);
 
             set.spawn(async move {
                 let (_, projects) = api
-                    .get_groups_projects(&group_id, page, PER_PAGE_MAX, true)
+                    .get_groups_projects(group_id.as_deref().unwrap(), page, PER_PAGE_MAX, true)
                     .await
                     .unwrap();
 
-                progress_bar.lock().await.inc(1);
                 projects.iter().map(|n| n.to_repository()).collect()
             });
         }
@@ -86,9 +78,10 @@ impl GitLabUpdater {
             }
 
             tx.commit().await?;
+            progress_bar.inc(1);
         }
 
-        progress_bar.lock().await.finish_with_message("Completed!");
+        progress_bar.finish_with_message("Completed!");
 
         Ok(())
     }
@@ -114,7 +107,6 @@ impl GitLabUpdater {
             let tx = self.pool.begin().await?;
 
             let (id, languages) = res?;
-            progress_bar.inc(1);
 
             for (lang, percent) in languages? {
                 let language_id = insert_language(&self.pool, &lang).await?;
@@ -122,6 +114,7 @@ impl GitLabUpdater {
             }
 
             tx.commit().await?;
+            progress_bar.inc(1);
         }
 
         progress_bar.finish_with_message("Completed!");
