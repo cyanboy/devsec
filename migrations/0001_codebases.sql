@@ -21,6 +21,6 @@ CREATE TABLE languages (
 CREATE TABLE codebase_languages (
     codebase_id INTEGER NOT NULL REFERENCES codebases(id) ON DELETE CASCADE,
     language_id INTEGER NOT NULL REFERENCES languages(id) ON DELETE CASCADE,
-    percent NUMERIC(3, 4) NOT NULL CHECK (percent >= 0.00 AND percent <= 100.00),
+    percentage REAL NOT NULL CHECK (percentage >= 0.00 AND percentage <= 100.00),
     PRIMARY KEY (codebase_id, language_id)
 );

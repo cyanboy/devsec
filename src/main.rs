@@ -55,6 +55,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             update_languages,
         } => {
             let gitlab_updater = GitLabUpdater::new(&auth, group_id.clone(), pool);
+
             if *update_projects {
                 gitlab_updater
                     .gitlab_update_projects()

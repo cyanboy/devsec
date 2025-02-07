@@ -130,7 +130,7 @@ pub struct Language {
 
 impl fmt::Display for Language {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}: {}%", self.name, self.usage)
+        write!(f, "{}: {:.4}%", self.name, self.usage)
     }
 }
 
@@ -139,11 +139,9 @@ pub async fn get_most_frequent_languages(
 ) -> Result<Vec<Language>, sqlx::error::Error> {
     let results = sqlx::query!(
         r#"
-        SELECT l.language_name AS language_name, 
-        CAST(ROUND(
-            CAST((SUM(cl.percentage) * 100.0) / SUM(SUM(cl.percentage)) OVER () AS NUMERIC), 
-            5
-        ) AS DOUBLE PRECISION) AS usage
+        SELECT 
+            l.language_name AS language_name, 
+            (SUM(cl.percentage) * 100.0) / SUM(SUM(cl.percentage)) OVER () AS usage
         FROM codebase_languages cl
         JOIN languages l ON cl.language_id = l.id
         GROUP BY l.language_name

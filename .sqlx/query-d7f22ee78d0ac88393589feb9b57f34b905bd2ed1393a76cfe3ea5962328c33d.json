@@ -1,0 +1,33 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO codebases \n        (id, repo_name, full_name, created_at, updated_at, pushed_at, ssh_url, web_url, private, forks_count, default_branch, archived)\n        VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12 )\n        ON CONFLICT (id) DO UPDATE \n        SET \n            repo_name = EXCLUDED.repo_name,\n            full_name = EXCLUDED.full_name,\n            created_at = EXCLUDED.created_at,\n            updated_at = EXCLUDED.updated_at,\n            pushed_at = EXCLUDED.pushed_at,\n            ssh_url = EXCLUDED.ssh_url,\n            web_url = EXCLUDED.web_url,\n            private = EXCLUDED.private,\n            forks_count = EXCLUDED.forks_count,\n            default_branch = EXCLUDED.default_branch,\n            archived = EXCLUDED.archived\n        RETURNING id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text",
+        "Text",
+        "Timestamptz",
+        "Timestamptz",
+        "Timestamptz",
+        "Text",
+        "Text",
+        "Bool",
+        "Int4",
+        "Text",
+        "Bool"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "d7f22ee78d0ac88393589feb9b57f34b905bd2ed1393a76cfe3ea5962328c33d"
+}

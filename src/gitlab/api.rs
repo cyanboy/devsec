@@ -10,7 +10,7 @@ use crate::db::Codebase;
 
 pub const TOTAL_PAGES_HEADER: &str = "x-total-pages";
 pub const PER_PAGE_MAX: u8 = 100;
-pub const GITLAB_PROJECT_RATE_LIMIT: u32 = 200;
+pub const GITLAB_PROJECT_RATE_LIMIT: u32 = 240;
 
 const GITLAB_URL: &str = "https://gitlab.com/api/v4";
 
