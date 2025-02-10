@@ -1,131 +1,83 @@
-use indicatif::ProgressBar;
-use reqwest::header::HeaderMap;
-use sqlx::PgPool;
-use std::{error::Error, sync::Arc};
-use tokio::task::JoinSet;
+use std::error::Error;
 
-use crate::db::{
-    get_all_codebase_ids, insert_codebase, insert_codebase_language, insert_language, Codebase,
+use indicatif::ProgressBar;
+use sqlx::PgPool;
+
+use crate::{
+    db::{insert_codebase, insert_codebase_language, insert_language},
+    gitlab::api::Api,
+    progress_bar::style_progress_bar,
 };
-use crate::gitlab::api::{Api, PER_PAGE_MAX, TOTAL_PAGES_HEADER};
-use crate::progress_bar::style_progress_bar;
 
 pub struct GitLabUpdater {
-    api: Arc<Api>,
-    pool: Arc<PgPool>,
-    group_id: Arc<Option<String>>,
+    api: Api,
+    group: String,
+    pool: PgPool,
 }
 
 impl GitLabUpdater {
-    pub fn new(gitlab_token: &str, group_id: Option<String>, pool: PgPool) -> GitLabUpdater {
-        let api = Arc::new(Api::new(&gitlab_token));
-        let pool = Arc::new(pool);
-        let group_id = Arc::new(group_id);
+    pub fn new(gitlab_token: &str, group_id: &str, pool: PgPool) -> GitLabUpdater {
+        let api = Api::new(&gitlab_token);
+        let group = group_id.to_string();
 
-        GitLabUpdater {
-            pool,
-            group_id,
-            api,
-        }
+        GitLabUpdater { api, group, pool }
     }
 
-    pub async fn gitlab_update_projects(&self) -> Result<(), Box<dyn Error>> {
+    pub async fn update(&self) -> Result<(), Box<dyn Error>> {
         let progress_bar = ProgressBar::no_length();
-        style_progress_bar(&progress_bar);
 
-        let (headers, projects) = self
+        let mut response = self
             .api
-            .get_groups_projects(self.group_id.as_deref().unwrap(), 1, PER_PAGE_MAX, true)
-            .await?;
+            .get_projects("ruter-as", None)
+            .await?
+            .data
+            .group
+            .projects;
 
-        let total_pages = parse_total_pages_header(&headers).unwrap_or(1);
-
-        let tx = self.pool.begin().await?;
-
-        for project in projects {
-            let repo = project.to_repository();
-            insert_codebase(&self.pool, repo).await?;
-        }
-
-        tx.commit().await?;
-
-        progress_bar.set_length(total_pages as u64);
-        progress_bar.inc(1);
-
-        let page_numbers: Vec<i32> = (2..=total_pages).collect();
-
-        let mut set: JoinSet<Vec<Codebase>> = JoinSet::new();
-
-        for page in page_numbers {
-            let api = Arc::clone(&self.api);
-            let group_id = Arc::clone(&self.group_id);
-
-            set.spawn(async move {
-                let (_, projects) = api
-                    .get_groups_projects(group_id.as_deref().unwrap(), page, PER_PAGE_MAX, true)
-                    .await
-                    .unwrap();
-
-                projects.iter().map(|n| n.to_repository()).collect()
-            });
-        }
-
-        while let Some(codebases) = set.join_next().await {
-            let tx = self.pool.begin().await?;
-
-            for codebase in codebases? {
-                insert_codebase(&self.pool, codebase).await?;
-            }
-
-            tx.commit().await?;
-            progress_bar.inc(1);
-        }
-
-        progress_bar.finish_with_message("Completed!");
-
-        Ok(())
-    }
-
-    pub async fn gitlab_update_languages(&self) -> Result<(), Box<dyn Error>> {
-        let codebase_ids = get_all_codebase_ids(&self.pool).await?;
-
-        let progress_bar = ProgressBar::new(codebase_ids.len() as u64);
         style_progress_bar(&progress_bar);
+        progress_bar.set_length(response.count);
 
-        let mut set = JoinSet::new();
+        loop {
+            let mut tx = self.pool.begin().await?;
 
-        for codebase_id in codebase_ids {
-            let api = Arc::clone(&self.api);
+            let page_info = response.page_info;
 
-            set.spawn(async move {
-                let languages = api.gitlab_languages_get(codebase_id).await;
-                (codebase_id, languages)
-            });
-        }
+            if let Some(cursor) = page_info.end_cursor {
+                response = self
+                    .api
+                    .get_projects(&self.group, Some(&cursor))
+                    .await?
+                    .data
+                    .group
+                    .projects;
+            } else {
+                break;
+            }
 
-        while let Some(res) = set.join_next().await {
-            let tx = self.pool.begin().await?;
+            for project in response.nodes {
+                let codebase = project.to_repository();
+                let languages = project.languages;
 
-            let (id, languages) = res?;
+                let codebase_id = codebase.id;
 
-            for (lang, percent) in languages? {
-                let language_id = insert_language(&self.pool, &lang).await?;
-                insert_codebase_language(&self.pool, id, language_id, percent).await?;
+                insert_codebase(&mut tx, codebase).await?;
+
+                for lang in languages {
+                    let lang_id = insert_language(&mut tx, &lang.name).await?;
+                    insert_codebase_language(&mut tx, codebase_id, lang_id, lang.share).await?;
+                }
+
+                progress_bar.inc(1);
             }
 
             tx.commit().await?;
-            progress_bar.inc(1);
+
+            if !page_info.has_next_page {
+                break;
+            }
         }
 
-        progress_bar.finish_with_message("Completed!");
-
+        progress_bar.finish_with_message("Done updating projects!");
         Ok(())
     }
-}
-
-fn parse_total_pages_header(headers: &HeaderMap) -> Option<i32> {
-    headers
-        .get(TOTAL_PAGES_HEADER)
-        .and_then(|value| value.to_str().ok())
-        .and_then(|value| value.parse::<i32>().ok())
 }

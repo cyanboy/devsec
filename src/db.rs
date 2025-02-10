@@ -1,27 +1,29 @@
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Codebase {
     pub id: i32,
     pub repo_name: String,
     pub full_name: String,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-    pub pushed_at: DateTime<Utc>,
-    pub ssh_url: String,
-    pub web_url: String,
+    pub created_at: Option<DateTime<Utc>>,
+    pub updated_at: Option<DateTime<Utc>>,
+    pub pushed_at: Option<DateTime<Utc>>,
+    pub ssh_url: Option<String>,
+    pub web_url: Option<String>,
     pub private: bool,
     pub forks_count: i32,
-    pub default_branch: String,
-    pub archived: bool,
+    pub archived: Option<bool>,
 }
 
-pub async fn insert_codebase(pool: &PgPool, codebase: Codebase) -> Result<i32, sqlx::error::Error> {
+pub async fn insert_codebase(
+    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    codebase: Codebase,
+) -> Result<i32, sqlx::error::Error> {
     let rec = sqlx::query!(
         r#"INSERT INTO codebases 
-        (id, repo_name, full_name, created_at, updated_at, pushed_at, ssh_url, web_url, private, forks_count, default_branch, archived)
-        VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12 )
+        (id, repo_name, full_name, created_at, updated_at, pushed_at, ssh_url, web_url, private, forks_count, archived)
+        VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11 )
         ON CONFLICT (id) DO UPDATE 
         SET 
             repo_name = EXCLUDED.repo_name,
@@ -33,7 +35,6 @@ pub async fn insert_codebase(pool: &PgPool, codebase: Codebase) -> Result<i32, s
             web_url = EXCLUDED.web_url,
             private = EXCLUDED.private,
             forks_count = EXCLUDED.forks_count,
-            default_branch = EXCLUDED.default_branch,
             archived = EXCLUDED.archived
         RETURNING id
         "#,
@@ -47,28 +48,14 @@ pub async fn insert_codebase(pool: &PgPool, codebase: Codebase) -> Result<i32, s
         codebase.web_url,
         codebase.private,
         codebase.forks_count,
-        codebase.default_branch,
         codebase.archived
-    ).fetch_one(pool).await?;
+    ).fetch_one(&mut **transaction).await?;
 
     Ok(rec.id)
 }
 
-pub async fn get_all_codebase_ids(pool: &PgPool) -> Result<Vec<i32>, sqlx::error::Error> {
-    let rows = sqlx::query!(
-        r#"
-        SELECT id
-        FROM codebases
-        "#
-    )
-    .fetch_all(pool)
-    .await?;
-
-    Ok(rows.iter().map(|r| r.id).collect())
-}
-
 pub async fn insert_language(
-    pool: &PgPool,
+    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     language_name: &str,
 ) -> Result<i32, sqlx::error::Error> {
     let rec = sqlx::query!(
@@ -80,7 +67,7 @@ pub async fn insert_language(
         "#,
         language_name
     )
-    .fetch_optional(pool)
+    .fetch_optional(&mut **transaction)
     .await?;
 
     Ok(match rec {
@@ -90,7 +77,7 @@ pub async fn insert_language(
                 "SELECT id FROM languages WHERE language_name = $1",
                 language_name
             )
-            .fetch_one(pool)
+            .fetch_one(&mut **transaction)
             .await?
             .id
         }
@@ -98,7 +85,7 @@ pub async fn insert_language(
 }
 
 pub async fn insert_codebase_language(
-    pool: &PgPool,
+    transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     codebase_id: i32,
     language_id: i32,
     percentage: f32,
@@ -115,7 +102,7 @@ pub async fn insert_codebase_language(
         language_id,
         percentage
     )
-    .execute(pool)
+    .execute(&mut **transaction)
     .await?;
 
     Ok(())

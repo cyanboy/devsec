@@ -2,15 +2,14 @@ CREATE TABLE codebases (
     id INTEGER PRIMARY KEY,
     repo_name TEXT NOT NULL,
     full_name TEXT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL,
-    pushed_at TIMESTAMPTZ NOT NULL,
-    ssh_url TEXT NOT NULL,
-    web_url TEXT NOT NULL,
-    private BOOLEAN NOT NULL,
+    created_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ,
+    pushed_at TIMESTAMPTZ,
+    ssh_url TEXT,
+    web_url TEXT,
+    private BOOLEAN,
     forks_count INTEGER NOT NULL,
-    default_branch TEXT NOT NULL,
-    archived BOOLEAN NOT NULL
+    archived BOOLEAN 
 );
 
 CREATE TABLE languages (

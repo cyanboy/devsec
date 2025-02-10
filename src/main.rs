@@ -24,13 +24,10 @@ enum Commands {
         auth: String,
 
         #[arg(long, value_name = "GitLab group id", env = "GITLAB_GROUP_ID")]
-        group_id: Option<String>,
+        group: String,
 
-        #[arg(long, requires = "group_id", help = "Get all projects in a group")]
-        update_projects: bool,
-
-        #[arg(long, help = "Update languages for GitLab projects")]
-        update_languages: bool,
+        #[arg(long, requires = "group", help = "Get all projects in a group")]
+        update: bool,
     },
     Stats,
 }
@@ -49,19 +46,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
     match &cli.command {
         Commands::Gitlab {
             auth,
-            group_id,
-            update_projects,
-            update_languages,
+            group,
+            update,
         } => {
-            let gitlab_updater = GitLabUpdater::new(&auth, group_id.clone(), pool);
-            if *update_projects {
-                gitlab_updater
-                    .gitlab_update_projects()
-                    .await
-                    .map_err(|e| format!("Failed to fetch group projects: {}", e))?
-            }
-            if *update_languages {
-                gitlab_updater.gitlab_update_languages().await?
+            let gitlab_updater = GitLabUpdater::new(&auth, group, pool);
+            if *update {
+                gitlab_updater.update().await?;
             }
         }
         Commands::Stats => {
