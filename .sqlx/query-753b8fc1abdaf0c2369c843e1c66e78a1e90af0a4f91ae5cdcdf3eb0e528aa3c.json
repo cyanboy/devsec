@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT \n        l.language_name AS language_name, \n        (SUM(cl.percentage) * 100.0) / SUM(SUM(cl.percentage)) OVER () AS usage\n        FROM codebase_languages cl \n        JOIN languages l ON cl.language_id = l.id\n        JOIN codebases c ON cl.codebase_id = c.id\n        WHERE c.archived = FALSE  -- Exclude archived repositories\n        GROUP BY l.language_name\n        ORDER BY usage DESC;\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "language_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "usage",
+        "type_info": "Float8"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "753b8fc1abdaf0c2369c843e1c66e78a1e90af0a4f91ae5cdcdf3eb0e528aa3c"
+}
