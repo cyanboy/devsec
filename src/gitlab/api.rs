@@ -7,11 +7,9 @@ use reqwest::{
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::db::Codebase;
-
 const GITLAB_GRAPHQL_URL: &str = "https://gitlab.com/api/graphql";
 
-const CODEBASES_QUERY: &str = r#"
+const GET_PROJECTS_QUERY: &str = r#"
 query GetProjects($group: ID!, $after: String) { 
     group(fullPath: $group) { 
         projects(includeSubgroups: true, after: $after) {
@@ -36,6 +34,9 @@ query GetProjects($group: ID!, $after: String) {
                     name
                     share
                 }
+                statistics {
+                    repositorySize
+                }
             }
         }
     }
@@ -56,35 +57,46 @@ impl Api {
             eprintln!("Could not set Authorization header");
         }
 
+        let auth_header =
+            HeaderValue::from_str(&format!("Bearer {token}")).expect("Invalid token format");
+
+        headers.insert(AUTHORIZATION, auth_header);
+
         let client = Client::builder()
             .default_headers(headers)
             .build()
-            .expect("Could not create client");
+            .expect("Failed to create HTTP client");
 
         Self { client }
     }
 
-    pub async fn get_projects(
+    pub async fn get_projects_after(
         &self,
         group: &str,
         after: Option<&str>,
     ) -> Result<ProjectsResponse, reqwest::Error> {
-        let data = json!({
-            "query" : CODEBASES_QUERY,
-            "variables" : {
-                "group" : group,
-                "after" : after.unwrap_or_default()
-            }
-        });
+        let variables = if let Some(after) = after {
+            json!({ "group": group, "after": after })
+        } else {
+            json!({ "group": group })
+        };
 
-        self.client
+        let data = json!({ "query": GET_PROJECTS_QUERY, "variables": variables });
+
+        let response = self
+            .client
             .post(GITLAB_GRAPHQL_URL)
             .header(CONTENT_TYPE, "application/json")
             .json(&data)
             .send()
-            .await?
-            .json::<ProjectsResponse>()
-            .await
+            .await?;
+
+        let json = response.json::<ProjectsResponse>().await?;
+        Ok(json)
+    }
+
+    pub async fn get_projects(&self, group: &str) -> Result<ProjectsResponse, reqwest::Error> {
+        self.get_projects_after(group, None).await
     }
 }
 
@@ -93,16 +105,17 @@ impl Api {
 pub struct Project {
     pub id: String,
     pub name: String,
-    pub web_url: Option<String>,
-    pub ssh_url_to_repo: Option<String>,
+    pub web_url: String,
+    pub ssh_url_to_repo: String,
     pub forks_count: i32,
-    pub created_at: Option<DateTime<Utc>>,
-    pub last_activity_at: Option<DateTime<Utc>>,
-    pub updated_at: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
+    pub last_activity_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
     pub full_path: String,
-    pub archived: Option<bool>,
-    pub visibility: Option<Visibility>,
+    pub archived: bool,
+    pub visibility: Visibility,
     pub languages: Vec<RepositoryLanguage>,
+    pub statistics: ProjectStatistics,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -149,25 +162,8 @@ pub struct RepositoryLanguage {
     pub share: f32,
 }
 
-impl Project {
-    pub fn to_repository(&self) -> Codebase {
-        let id = self.id.split("/").last().unwrap().parse::<i32>().unwrap();
-
-        Codebase {
-            id,
-            repo_name: self.name.clone(),
-            full_name: self.full_path.clone(),
-            created_at: self.created_at,
-            updated_at: self.updated_at,
-            pushed_at: self.last_activity_at,
-            ssh_url: self.ssh_url_to_repo.clone(),
-            web_url: self.web_url.clone(),
-            private: match self.visibility {
-                Some(Visibility::Public) => false,
-                _ => true,
-            },
-            forks_count: self.forks_count,
-            archived: self.archived,
-        }
-    }
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectStatistics {
+    pub repository_size: f32,
 }

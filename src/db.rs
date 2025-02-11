@@ -1,30 +1,33 @@
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 
-#[derive(Debug, Clone)]
-pub struct Codebase {
-    pub id: i32,
+#[derive(Debug)]
+pub struct NewCodebase {
+    pub external_id: i32,
+    pub source: String,
     pub repo_name: String,
     pub full_name: String,
-    pub created_at: Option<DateTime<Utc>>,
-    pub updated_at: Option<DateTime<Utc>>,
-    pub pushed_at: Option<DateTime<Utc>>,
-    pub ssh_url: Option<String>,
-    pub web_url: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub pushed_at: DateTime<Utc>,
+    pub ssh_url: String,
+    pub web_url: String,
     pub private: bool,
     pub forks_count: i32,
-    pub archived: Option<bool>,
+    pub archived: bool,
+    pub size: f32,
 }
 
 pub async fn insert_codebase(
     transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-    codebase: Codebase,
+    codebase: NewCodebase,
 ) -> Result<i32, sqlx::error::Error> {
     let rec = sqlx::query!(
-        r#"INSERT INTO codebases 
-        (id, repo_name, full_name, created_at, updated_at, pushed_at, ssh_url, web_url, private, forks_count, archived)
-        VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11 )
-        ON CONFLICT (id) DO UPDATE 
+        r#"
+        INSERT INTO codebases 
+        (external_id, source, repo_name, full_name, created_at, updated_at, pushed_at, ssh_url, web_url, private, forks_count, archived, size)
+        VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13 )
+        ON CONFLICT (external_id, source) DO UPDATE 
         SET 
             repo_name = EXCLUDED.repo_name,
             full_name = EXCLUDED.full_name,
@@ -35,10 +38,12 @@ pub async fn insert_codebase(
             web_url = EXCLUDED.web_url,
             private = EXCLUDED.private,
             forks_count = EXCLUDED.forks_count,
-            archived = EXCLUDED.archived
+            archived = EXCLUDED.archived,
+            size = EXCLUDED.size
         RETURNING id
         "#,
-        codebase.id,
+        codebase.external_id,
+        codebase.source,
         codebase.repo_name,
         codebase.full_name,
         codebase.created_at,
@@ -48,7 +53,8 @@ pub async fn insert_codebase(
         codebase.web_url,
         codebase.private,
         codebase.forks_count,
-        codebase.archived
+        codebase.archived,
+        codebase.size
     ).fetch_one(&mut **transaction).await?;
 
     Ok(rec.id)
