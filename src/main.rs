@@ -56,7 +56,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
         Commands::Stats => {
             let most_used = get_most_frequent_languages(&pool).await?;
-            most_used.iter().for_each(|lang| println!("{:?}", lang));
+            most_used
+                .iter()
+                .for_each(|lang| println!("{}: {:.2}%", lang.0, lang.1));
         }
     };
 
