@@ -120,10 +120,12 @@ pub async fn get_most_frequent_languages(
     let results = sqlx::query!(
         r#"
         SELECT 
-            l.language_name AS language_name, 
-            (SUM(cl.percentage) * 100.0) / SUM(SUM(cl.percentage)) OVER () AS usage
-        FROM codebase_languages cl
+        l.language_name AS language_name, 
+        (SUM(cl.percentage) * 100.0) / SUM(SUM(cl.percentage)) OVER () AS usage
+        FROM codebase_languages cl 
         JOIN languages l ON cl.language_id = l.id
+        JOIN codebases c ON cl.codebase_id = c.id
+        WHERE c.archived = FALSE  -- Exclude archived repositories
         GROUP BY l.language_name
         ORDER BY usage DESC;
         "#

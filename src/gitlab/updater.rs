@@ -87,11 +87,6 @@ impl GitLabUpdater {
                     insert_codebase_language(&mut tx, codebase_id, lang_id, lang.share).await?;
                 }
 
-                if project.languages.is_empty() {
-                    let lang_id = insert_language(&mut tx, "Other").await?;
-                    insert_codebase_language(&mut tx, codebase_id, lang_id, 100.0).await?;
-                }
-
                 tx.commit().await?;
                 progress_bar.inc(1);
             }
