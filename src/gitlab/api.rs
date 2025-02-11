@@ -1,7 +1,6 @@
 use chrono::{DateTime, Utc};
-use hyper::header::CONTENT_TYPE;
 use reqwest::{
-    header::{HeaderMap, HeaderValue, AUTHORIZATION},
+    header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE},
     Client,
 };
 use serde::{Deserialize, Serialize};
