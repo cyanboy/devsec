@@ -33,6 +33,9 @@ enum Commands {
     Search {
         #[arg(value_name = "search query")]
         query: String,
+
+        #[arg(long, help = "Return result as json")]
+        json: bool,
     },
 }
 
@@ -40,7 +43,10 @@ enum Commands {
 async fn main() -> Result<(), Box<dyn Error>> {
     dotenvy::dotenv().ok();
     let cli = Cli::parse();
-    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let database_url = env::var("DATABASE_URL").unwrap_or_else(|_| {
+        eprintln!("❌ Error: DATABASE_URL is not set. Please configure it.");
+        std::process::exit(1);
+    });
 
     let pool = PgPoolOptions::new()
         .max_connections(5)
@@ -55,7 +61,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         } => {
             let gitlab_updater = GitLabUpdater::new(&auth, group, pool);
             if *update {
-                gitlab_updater.update().await?;
+                match gitlab_updater.update().await {
+                    Ok(_) => println!("GitLab data updated successfully."),
+                    Err(e) => eprintln!("❌ Error updating GitLab data: {}", e),
+                }
             }
         }
         Commands::Stats => {
@@ -64,11 +73,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 .iter()
                 .for_each(|lang| println!("{}: {:.2}%", lang.0, lang.1));
         }
-        Commands::Search { query } => {
+        Commands::Search { query, json } => {
             let result = search_repositories(&pool, &query).await?;
 
-            for repo in result {
-                println!("{}", repo.web_url);
+            if *json {
+                println!("{}", serde_json::to_string(&result)?);
+            } else {
+                for repo in result {
+                    println!("{}", repo.web_url);
+                }
             }
         }
     };

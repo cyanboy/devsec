@@ -82,7 +82,8 @@ impl GitLabUpdater {
                     private,
                     forks_count: project.forks_count,
                     archived: project.archived,
-                    size: project.statistics.repository_size,
+                    size: project.statistics.repository_size as i64,
+                    commit_count: project.statistics.commit_count as i32,
                 };
 
                 let mut tx = self.pool.begin().await?;

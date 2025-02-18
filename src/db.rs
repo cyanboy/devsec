@@ -1,7 +1,8 @@
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Repository {
     pub id: i32,
     pub external_id: i32,
@@ -17,7 +18,8 @@ pub struct Repository {
     pub private: bool,
     pub forks_count: i32,
     pub archived: bool,
-    pub size: f32,
+    pub size: i64,
+    pub commit_count: i32,
 }
 
 #[derive(Debug)]
@@ -35,7 +37,8 @@ pub struct NewRepository {
     pub private: bool,
     pub forks_count: i32,
     pub archived: bool,
-    pub size: f32,
+    pub size: i64,
+    pub commit_count: i32,
 }
 
 pub async fn insert_repository(
@@ -45,8 +48,8 @@ pub async fn insert_repository(
     let rec = sqlx::query!(
         r#"
         INSERT INTO repositories
-        (external_id, source, name, namespace, description, created_at, updated_at, pushed_at, ssh_url, web_url, private, forks_count, archived, size)
-        VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14 )
+        (external_id, source, name, namespace, description, created_at, updated_at, pushed_at, ssh_url, web_url, private, forks_count, archived, size, commit_count)
+        VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15 )
         ON CONFLICT (external_id, source) DO UPDATE
         SET
             name = EXCLUDED.name,
@@ -60,7 +63,8 @@ pub async fn insert_repository(
             private = EXCLUDED.private,
             forks_count = EXCLUDED.forks_count,
             archived = EXCLUDED.archived,
-            size = EXCLUDED.size
+            size = EXCLUDED.size,
+            commit_count = EXCLUDED.commit_count
         RETURNING id
         "#,
         repository.external_id,
@@ -76,7 +80,8 @@ pub async fn insert_repository(
         repository.private,
         repository.forks_count,
         repository.archived,
-        repository.size
+        repository.size,
+        repository.commit_count,
     ).fetch_one(&mut **transaction).await?;
 
     Ok(rec.id)
@@ -168,7 +173,8 @@ pub async fn search_repositories(
     let results = sqlx::query_as!(
         Repository,
         r#"
-        SELECT id, external_id, source, name, namespace, description, created_at, updated_at, pushed_at, ssh_url, web_url, private, forks_count, archived, size
+        SELECT id, external_id, source, name, namespace, description, created_at, updated_at, pushed_at, ssh_url, web_url, private,
+            forks_count, archived, size, commit_count
         FROM repositories
         WHERE search_vector @@ websearch_to_tsquery('english', $1)
         ORDER BY ts_rank(search_vector, websearch_to_tsquery('english', $1)) DESC;

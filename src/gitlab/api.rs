@@ -35,6 +35,7 @@ query GetProjects($group: ID!, $after: String) {
                 }
                 statistics {
                     repositorySize
+                    commitCount
                 }
                 namespace {
                     fullPath
@@ -175,4 +176,5 @@ pub struct RepositoryLanguage {
 #[serde(rename_all = "camelCase")]
 pub struct ProjectStatistics {
     pub repository_size: f32,
+    pub commit_count: f32,
 }
