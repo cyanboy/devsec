@@ -68,7 +68,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let result = search_repositories(&pool, &query).await?;
 
             for repo in result {
-                println!("[{}]({})", repo.name, repo.web_url,);
+                println!("{}", repo.web_url);
             }
         }
     };
