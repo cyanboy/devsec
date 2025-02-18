@@ -67,6 +67,7 @@ impl GitLabUpdater {
                     source,
                     repo_name: project.name,
                     full_name: project.full_path,
+                    description: project.description,
                     created_at: project.created_at,
                     updated_at: project.updated_at,
                     pushed_at: project.last_activity_at,

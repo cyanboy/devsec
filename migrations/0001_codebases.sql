@@ -4,6 +4,7 @@ CREATE TABLE codebases (
     source TEXT NOT NULL,
     repo_name TEXT NOT NULL,
     full_name TEXT NOT NULL,
+    description TEXT,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
     pushed_at TIMESTAMPTZ NOT NULL,
@@ -22,11 +23,8 @@ CREATE TABLE languages (
 );
 
 CREATE TABLE codebase_languages (
-    codebase_id INTEGER NOT NULL REFERENCES codebases (id) ON DELETE CASCADE, 
+    codebase_id INTEGER NOT NULL REFERENCES codebases (id) ON DELETE CASCADE,
     language_id INTEGER NOT NULL REFERENCES languages (id) ON DELETE CASCADE,
-    percentage REAL NOT NULL CHECK (
-        percentage >= 0.00
-        AND percentage <= 100.00
-    ),
+    percentage REAL NOT NULL,
     PRIMARY KEY (codebase_id, language_id)
 );

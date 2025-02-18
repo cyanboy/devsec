@@ -9,8 +9,8 @@ use serde_json::json;
 const GITLAB_GRAPHQL_URL: &str = "https://gitlab.com/api/graphql";
 
 const GET_PROJECTS_QUERY: &str = r#"
-query GetProjects($group: ID!, $after: String) { 
-    group(fullPath: $group) { 
+query GetProjects($group: ID!, $after: String) {
+    group(fullPath: $group) {
         projects(includeSubgroups: true, after: $after) {
             count
             pageInfo {
@@ -20,6 +20,7 @@ query GetProjects($group: ID!, $after: String) {
             nodes {
                 id
                 name
+                description
                 fullPath
                 archived
                 updatedAt
@@ -104,6 +105,7 @@ impl Api {
 pub struct Project {
     pub id: String,
     pub name: String,
+    pub description: Option<String>,
     pub web_url: String,
     pub ssh_url_to_repo: String,
     pub forks_count: i32,
