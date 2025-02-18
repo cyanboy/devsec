@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 
 #[derive(Debug)]
-pub struct NewCodebase {
+pub struct NewRepository {
     pub external_id: i32,
     pub source: String,
     pub repo_name: String,
@@ -19,13 +19,13 @@ pub struct NewCodebase {
     pub size: f32,
 }
 
-pub async fn insert_codebase(
+pub async fn insert_repository(
     transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-    codebase: NewCodebase,
+    repository: NewRepository,
 ) -> Result<i32, sqlx::error::Error> {
     let rec = sqlx::query!(
         r#"
-        INSERT INTO codebases
+        INSERT INTO repositories
         (external_id, source, repo_name, full_name, description, created_at, updated_at, pushed_at, ssh_url, web_url, private, forks_count, archived, size)
         VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14 )
         ON CONFLICT (external_id, source) DO UPDATE
@@ -44,20 +44,20 @@ pub async fn insert_codebase(
             size = EXCLUDED.size
         RETURNING id
         "#,
-        codebase.external_id,
-        codebase.source,
-        codebase.repo_name,
-        codebase.full_name,
-        codebase.description,
-        codebase.created_at,
-        codebase.updated_at,
-        codebase.pushed_at,
-        codebase.ssh_url,
-        codebase.web_url,
-        codebase.private,
-        codebase.forks_count,
-        codebase.archived,
-        codebase.size
+        repository.external_id,
+        repository.source,
+        repository.repo_name,
+        repository.full_name,
+        repository.description,
+        repository.created_at,
+        repository.updated_at,
+        repository.pushed_at,
+        repository.ssh_url,
+        repository.web_url,
+        repository.private,
+        repository.forks_count,
+        repository.archived,
+        repository.size
     ).fetch_one(&mut **transaction).await?;
 
     Ok(rec.id)
@@ -93,21 +93,21 @@ pub async fn insert_language(
     })
 }
 
-pub async fn insert_codebase_language(
+pub async fn insert_repository_language(
     transaction: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-    codebase_id: i32,
+    repository_id: i32,
     language_id: i32,
     percentage: f32,
 ) -> Result<(), sqlx::Error> {
     sqlx::query!(
         r#"
-        INSERT INTO codebase_languages (codebase_id, language_id, percentage)
+        INSERT INTO repository_languages (repository_id, language_id, percentage)
         VALUES ($1, $2, $3)
-        ON CONFLICT (codebase_id, language_id)
+        ON CONFLICT (repository_id, language_id)
         DO UPDATE
         SET percentage = EXCLUDED.percentage
         "#,
-        codebase_id,
+        repository_id,
         language_id,
         percentage
     )
@@ -125,9 +125,9 @@ pub async fn get_most_frequent_languages(
         SELECT
         l.language_name AS language_name,
         (SUM(cl.percentage) * 100.0) / SUM(SUM(cl.percentage)) OVER () AS usage
-        FROM codebase_languages cl
+        FROM repository_languages cl
         JOIN languages l ON cl.language_id = l.id
-        JOIN codebases c ON cl.codebase_id = c.id
+        JOIN repositories c ON cl.repository_id = c.id
         WHERE c.archived = FALSE  -- Exclude archived repositories
         GROUP BY l.language_name
         ORDER BY usage DESC;

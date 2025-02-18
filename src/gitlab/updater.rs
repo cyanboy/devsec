@@ -4,7 +4,7 @@ use indicatif::ProgressBar;
 use sqlx::PgPool;
 
 use crate::{
-    db::{insert_codebase, insert_codebase_language, insert_language, NewCodebase},
+    db::{insert_language, insert_repository, insert_repository_language, NewRepository},
     gitlab::api::{Api, Visibility},
     progress_bar::style_progress_bar,
 };
@@ -62,7 +62,7 @@ impl GitLabUpdater {
                     _ => true,
                 };
 
-                let codebase = NewCodebase {
+                let codebase = NewRepository {
                     external_id,
                     source,
                     repo_name: project.name,
@@ -81,11 +81,11 @@ impl GitLabUpdater {
 
                 let mut tx = self.pool.begin().await?;
 
-                let codebase_id = insert_codebase(&mut tx, codebase).await?;
+                let codebase_id = insert_repository(&mut tx, codebase).await?;
 
                 for lang in &project.languages {
                     let lang_id = insert_language(&mut tx, &lang.name).await?;
-                    insert_codebase_language(&mut tx, codebase_id, lang_id, lang.share).await?;
+                    insert_repository_language(&mut tx, codebase_id, lang_id, lang.share).await?;
                 }
 
                 tx.commit().await?;
