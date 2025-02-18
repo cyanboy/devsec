@@ -177,6 +177,7 @@ pub async fn search_repositories(
             forks_count, archived, size, commit_count
         FROM repositories
         WHERE search_vector @@ websearch_to_tsquery('english', $1)
+        AND archived = false
         ORDER BY ts_rank(search_vector, websearch_to_tsquery('english', $1)) DESC;
         "#,
         query
