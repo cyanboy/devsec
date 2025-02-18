@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO repositories\n        (external_id, source, repo_name, full_name, description, created_at, updated_at, pushed_at, ssh_url, web_url, private, forks_count, archived, size)\n        VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14 )\n        ON CONFLICT (external_id, source) DO UPDATE\n        SET\n            repo_name = EXCLUDED.repo_name,\n            full_name = EXCLUDED.full_name,\n            description = EXCLUDED.description,\n            created_at = EXCLUDED.created_at,\n            updated_at = EXCLUDED.updated_at,\n            pushed_at = EXCLUDED.pushed_at,\n            ssh_url = EXCLUDED.ssh_url,\n            web_url = EXCLUDED.web_url,\n            private = EXCLUDED.private,\n            forks_count = EXCLUDED.forks_count,\n            archived = EXCLUDED.archived,\n            size = EXCLUDED.size\n        RETURNING id\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Timestamptz",
+        "Timestamptz",
+        "Timestamptz",
+        "Text",
+        "Text",
+        "Bool",
+        "Int4",
+        "Bool",
+        "Float4"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "c8e7b779606d17331024077ae32e657d9c03a74857e6ee48499cc4e1112a1cb3"
+}
