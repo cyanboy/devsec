@@ -4,14 +4,14 @@ UPDATE repositories
 SET
     search_vector = to_tsvector (
         'english',
-        coalesce(repo_name, '') || ' ' || coalesce(description, '')
+        coalesce(full_name, '') || ' ' || coalesce(description, '')
     );
 
 CREATE INDEX idx_repositories_search ON repositories USING GIN (search_vector);
 
 CREATE FUNCTION update_search_vector() RETURNS TRIGGER AS $$
 BEGIN
-    NEW.search_vector := to_tsvector('english', coalesce(NEW.repo_name, '') || ' ' || coalesce(NEW.description, ''));
+    NEW.search_vector := to_tsvector('english', coalesce(NEW.full_name, '') || ' ' || coalesce(NEW.description, ''));
     RETURN NEW;
 END
 $$ LANGUAGE plpgsql;
