@@ -21,7 +21,6 @@ query GetProjects($group: ID!, $after: String) {
                 id
                 name
                 description
-                fullPath
                 archived
                 updatedAt
                 createdAt
@@ -36,6 +35,9 @@ query GetProjects($group: ID!, $after: String) {
                 }
                 statistics {
                     repositorySize
+                }
+                namespace {
+                    fullPath
                 }
             }
         }
@@ -106,17 +108,23 @@ pub struct Project {
     pub id: String,
     pub name: String,
     pub description: Option<String>,
+    pub namespace: Namespace,
     pub web_url: String,
     pub ssh_url_to_repo: String,
     pub forks_count: i32,
     pub created_at: DateTime<Utc>,
     pub last_activity_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
-    pub full_path: String,
     pub archived: bool,
     pub visibility: Visibility,
     pub languages: Vec<RepositoryLanguage>,
     pub statistics: ProjectStatistics,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Namespace {
+    pub full_path: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

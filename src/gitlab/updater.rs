@@ -26,7 +26,13 @@ impl GitLabUpdater {
     pub async fn update(&self) -> Result<(), Box<dyn Error>> {
         let progress_bar = ProgressBar::no_length();
 
-        let mut response = self.api.get_projects("ruter-as").await?.data.group.projects;
+        let mut response = self
+            .api
+            .get_projects(&self.group)
+            .await?
+            .data
+            .group
+            .projects;
 
         style_progress_bar(&progress_bar);
         progress_bar.set_length(response.count);
@@ -65,8 +71,8 @@ impl GitLabUpdater {
                 let codebase = NewRepository {
                     external_id,
                     source,
-                    repo_name: project.name,
-                    full_name: project.full_path,
+                    name: project.name,
+                    namespace: project.namespace.full_path,
                     description: project.description,
                     created_at: project.created_at,
                     updated_at: project.updated_at,

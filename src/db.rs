@@ -2,11 +2,30 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 
 #[derive(Debug)]
+pub struct Repository {
+    pub id: i32,
+    pub external_id: i32,
+    pub source: String,
+    pub name: String,
+    pub namespace: String,
+    pub description: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub pushed_at: DateTime<Utc>,
+    pub ssh_url: String,
+    pub web_url: String,
+    pub private: bool,
+    pub forks_count: i32,
+    pub archived: bool,
+    pub size: f32,
+}
+
+#[derive(Debug)]
 pub struct NewRepository {
     pub external_id: i32,
     pub source: String,
-    pub repo_name: String,
-    pub full_name: String,
+    pub name: String,
+    pub namespace: String,
     pub description: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -26,12 +45,12 @@ pub async fn insert_repository(
     let rec = sqlx::query!(
         r#"
         INSERT INTO repositories
-        (external_id, source, repo_name, full_name, description, created_at, updated_at, pushed_at, ssh_url, web_url, private, forks_count, archived, size)
+        (external_id, source, name, namespace, description, created_at, updated_at, pushed_at, ssh_url, web_url, private, forks_count, archived, size)
         VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14 )
         ON CONFLICT (external_id, source) DO UPDATE
         SET
-            repo_name = EXCLUDED.repo_name,
-            full_name = EXCLUDED.full_name,
+            name = EXCLUDED.name,
+            namespace = EXCLUDED.namespace,
             description = EXCLUDED.description,
             created_at = EXCLUDED.created_at,
             updated_at = EXCLUDED.updated_at,
@@ -46,8 +65,8 @@ pub async fn insert_repository(
         "#,
         repository.external_id,
         repository.source,
-        repository.repo_name,
-        repository.full_name,
+        repository.name,
+        repository.namespace,
         repository.description,
         repository.created_at,
         repository.updated_at,
@@ -140,4 +159,24 @@ pub async fn get_most_frequent_languages(
         .iter()
         .map(|row| (row.language_name.clone(), row.usage.unwrap_or(0.0)))
         .collect())
+}
+
+pub async fn search_repositories(
+    pool: &PgPool,
+    query: &str,
+) -> Result<Vec<Repository>, sqlx::error::Error> {
+    let results = sqlx::query_as!(
+        Repository,
+        r#"
+        SELECT id, external_id, source, name, namespace, description, created_at, updated_at, pushed_at, ssh_url, web_url, private, forks_count, archived, size
+        FROM repositories
+        WHERE search_vector @@ websearch_to_tsquery('english', $1)
+        ORDER BY ts_rank(search_vector, websearch_to_tsquery('english', $1)) DESC;
+        "#,
+        query
+    )
+    .fetch_all(pool)
+    .await?;
+
+    Ok(results)
 }

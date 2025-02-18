@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use db::get_most_frequent_languages;
+use db::{get_most_frequent_languages, search_repositories};
 use gitlab::updater::GitLabUpdater;
 use sqlx::postgres::PgPoolOptions;
 use std::{env, error::Error};
@@ -30,6 +30,10 @@ enum Commands {
         update: bool,
     },
     Stats,
+    Search {
+        #[arg(value_name = "search query")]
+        query: String,
+    },
 }
 
 #[tokio::main]
@@ -59,6 +63,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
             most_used
                 .iter()
                 .for_each(|lang| println!("{}: {:.2}%", lang.0, lang.1));
+        }
+        Commands::Search { query } => {
+            let result = search_repositories(&pool, &query).await?;
+
+            for repo in result {
+                println!("[{}]({})", repo.name, repo.web_url,);
+            }
         }
     };
 
