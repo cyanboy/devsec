@@ -169,21 +169,38 @@ pub async fn get_most_frequent_languages(
 pub async fn search_repositories(
     pool: &PgPool,
     query: &str,
+    include_archived: bool,
 ) -> Result<Vec<Repository>, sqlx::error::Error> {
-    let results = sqlx::query_as!(
-        Repository,
-        r#"
-        SELECT id, external_id, source, name, namespace, description, created_at, updated_at, pushed_at, ssh_url, web_url, private,
-            forks_count, archived, size, commit_count
-        FROM repositories
-        WHERE search_vector @@ websearch_to_tsquery('english', $1)
-        AND archived = false
-        ORDER BY ts_rank(search_vector, websearch_to_tsquery('english', $1)) DESC;
-        "#,
-        query
-    )
-    .fetch_all(pool)
-    .await?;
+    let results = if include_archived {
+        sqlx::query_as!(
+            Repository,
+            r#"
+            SELECT id, external_id, source, name, namespace, description, created_at, updated_at, pushed_at, ssh_url, web_url,
+                private, forks_count, archived, size, commit_count
+            FROM repositories
+            WHERE search_vector @@ websearch_to_tsquery('english', $1)
+            ORDER BY ts_rank(search_vector, websearch_to_tsquery('english', $1)) DESC;
+            "#,
+            query
+        )
+        .fetch_all(pool)
+        .await?
+    } else {
+        sqlx::query_as!(
+            Repository,
+            r#"
+            SELECT id, external_id, source, name, namespace, description, created_at, updated_at, pushed_at, ssh_url, web_url,
+                private, forks_count, archived, size, commit_count
+            FROM repositories
+            WHERE search_vector @@ websearch_to_tsquery('english', $1)
+            AND archived = false
+            ORDER BY ts_rank(search_vector, websearch_to_tsquery('english', $1)) DESC;
+            "#,
+            query
+        )
+        .fetch_all(pool)
+        .await?
+    };
 
     Ok(results)
 }

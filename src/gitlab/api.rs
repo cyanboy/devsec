@@ -38,7 +38,7 @@ query GetProjects($group: ID!, $after: String) {
                     commitCount
                 }
                 namespace {
-                    fullPath
+                    fullName
                 }
             }
         }
@@ -125,7 +125,7 @@ pub struct Project {
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Namespace {
-    pub full_path: String,
+    pub full_name: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

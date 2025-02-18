@@ -36,6 +36,9 @@ enum Commands {
 
         #[arg(long, help = "Return result as json")]
         json: bool,
+
+        #[arg(long, help = "Include archived repositories in search results")]
+        include_archived: bool,
     },
 }
 
@@ -73,8 +76,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 .iter()
                 .for_each(|lang| println!("{}: {:.2}%", lang.0, lang.1));
         }
-        Commands::Search { query, json } => {
-            let result = search_repositories(&pool, &query).await?;
+        Commands::Search {
+            query,
+            json,
+            include_archived,
+        } => {
+            let result = search_repositories(&pool, &query, *include_archived).await?;
 
             if *json {
                 println!("{}", serde_json::to_string(&result)?);

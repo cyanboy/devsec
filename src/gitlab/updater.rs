@@ -72,7 +72,7 @@ impl GitLabUpdater {
                     external_id,
                     source,
                     name: project.name,
-                    namespace: project.namespace.full_path,
+                    namespace: project.namespace.full_name,
                     description: project.description,
                     created_at: project.created_at,
                     updated_at: project.updated_at,
