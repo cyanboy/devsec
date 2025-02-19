@@ -38,7 +38,7 @@ query GetProjects($group: ID!, $after: String) {
                     commitCount
                 }
                 namespace {
-                    fullName
+                    fullPath
                 }
             }
         }
@@ -94,7 +94,7 @@ impl Api {
             .send()
             .await?;
 
-        let json = response.json::<ProjectsResponse>().await?;
+        let json = response.json::<ProjectsResponse>().await.unwrap();
         Ok(json)
     }
 
@@ -112,7 +112,7 @@ pub struct Project {
     pub namespace: Namespace,
     pub web_url: String,
     pub ssh_url_to_repo: String,
-    pub forks_count: i32,
+    pub forks_count: i64,
     pub created_at: DateTime<Utc>,
     pub last_activity_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -125,7 +125,7 @@ pub struct Project {
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Namespace {
-    pub full_name: String,
+    pub full_path: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

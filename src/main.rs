@@ -1,10 +1,9 @@
 use clap::{Parser, Subcommand};
 use db::{get_most_frequent_languages, search_repositories};
 use gitlab::updater::GitLabUpdater;
-use sqlx::postgres::PgPoolOptions;
+use serde::{Deserialize, Serialize};
+use sqlx::SqlitePool;
 use std::{env, error::Error};
-
-extern crate chrono;
 
 mod db;
 mod gitlab;
@@ -42,19 +41,17 @@ enum Commands {
     },
 }
 
+#[derive(Serialize, Deserialize)]
+struct DevSecConfig {
+    test: String,
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     dotenvy::dotenv().ok();
     let cli = Cli::parse();
-    let database_url = env::var("DATABASE_URL").unwrap_or_else(|_| {
-        eprintln!("❌ Error: DATABASE_URL is not set. Please configure it.");
-        std::process::exit(1);
-    });
 
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&database_url)
-        .await?;
+    let pool = SqlitePool::connect(&env::var("DATABASE_URL")?).await?;
 
     match &cli.command {
         Commands::Gitlab {

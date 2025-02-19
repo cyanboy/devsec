@@ -1,72 +1,91 @@
-ALTER TABLE repositories ADD COLUMN search_vector tsvector;
+CREATE VIRTUAL
+TABLE repositories_fts USING fts5 (
+    name,
+    namespace,
+    description,
+    languages
+);
 
-UPDATE repositories
-SET
-    search_vector = setweight (
-        to_tsvector ('english', coalesce(name, '')),
-        'A'
-    ) || setweight (
-        to_tsvector (
-            'english',
-            coalesce(namespace, '')
-        ),
-        'B'
-    ) || setweight (
-        to_tsvector (
-            'english',
-            coalesce(description, '')
-        ),
-        'C'
-    ) || setweight (
-        to_tsvector (
-            'english',
-            coalesce(
-                (
-                    SELECT string_agg (language_name, ' ')
-                    FROM
-                        repository_languages
-                        JOIN languages ON repository_languages.language_id = languages.id
-                    WHERE
-                        repository_languages.repository_id = repositories.id
-                ),
-                ''
-            )
-        ),
-        'D'
+INSERT INTO
+    repositories_fts (
+        rowid,
+        name,
+        namespace,
+        description,
+        languages
+    )
+SELECT r.id, r.name, r.namespace, r.description, COALESCE(
+        (
+            SELECT GROUP_CONCAT(l.language_name, ' ')
+            FROM
+                repository_languages rl
+                JOIN languages l ON rl.language_id = l.id
+            WHERE
+                rl.repository_id = r.id
+        ), ''
+    )
+FROM repositories r;
+
+CREATE TRIGGER repositories_fts_insert AFTER INSERT ON repositories
+BEGIN
+    INSERT INTO repositories_fts (rowid, name, namespace, description, languages)
+    VALUES (
+        new.id,
+        new.name,
+        new.namespace,
+        new.description,
+        COALESCE((
+            SELECT GROUP_CONCAT(l.language_name, ' ')
+            FROM repository_languages rl
+            JOIN languages l ON rl.language_id = l.id
+            WHERE rl.repository_id = new.id
+        ), '')
     );
+END;
 
-CREATE INDEX idx_repositories_search ON repositories USING GIN (search_vector);
-
-CREATE FUNCTION update_search_vector() RETURNS TRIGGER AS $$
+CREATE TRIGGER repositories_fts_update AFTER UPDATE ON repositories
 BEGIN
-    NEW.search_vector :=
-        setweight(to_tsvector('english', coalesce(NEW.name, '')), 'A') ||
-        setweight(to_tsvector('english', coalesce(NEW.namespace, '')), 'B') ||
-        setweight(to_tsvector('english', coalesce(NEW.description, '')), 'C') ||
-        setweight(to_tsvector('english', coalesce(
-            (SELECT string_agg(language_name, ' ')
-             FROM repository_languages
-             JOIN languages ON repository_languages.language_id = languages.id
-             WHERE repository_languages.repository_id = NEW.id), ''
-        )), 'D');
-    RETURN NEW;
-END
-$$ LANGUAGE plpgsql;
+    DELETE FROM repositories_fts WHERE rowid = old.id;
+    INSERT INTO repositories_fts (rowid, name, namespace, description, languages)
+    VALUES (
+        new.id,
+        new.name,
+        new.namespace,
+        new.description,
+        COALESCE((
+            SELECT GROUP_CONCAT(l.language_name, ' ')
+            FROM repository_languages rl
+            JOIN languages l ON rl.language_id = l.id
+            WHERE rl.repository_id = new.id
+        ), '')
+    );
+END;
 
-CREATE TRIGGER repositories_search_vector_trigger
-BEFORE INSERT OR UPDATE ON repositories
-FOR EACH ROW EXECUTE FUNCTION update_search_vector();
-
-
-CREATE FUNCTION update_repository_search_on_language_change() RETURNS TRIGGER AS $$
+CREATE TRIGGER repositories_fts_delete AFTER DELETE ON repositories
 BEGIN
-    UPDATE repositories
-    SET search_vector = search_vector
-    WHERE id = NEW.repository_id;
-    RETURN NEW;
-END
-$$ LANGUAGE plpgsql;
+    DELETE FROM repositories_fts WHERE rowid = old.id;
+END;
 
-CREATE TRIGGER trigger_update_repository_search_on_language_insert
-AFTER INSERT OR DELETE ON repository_languages
-FOR EACH ROW EXECUTE FUNCTION update_repository_search_on_language_change();
+CREATE TRIGGER repository_languages_insert AFTER INSERT ON repository_languages
+BEGIN
+    UPDATE repositories_fts
+    SET languages = COALESCE((
+        SELECT GROUP_CONCAT(l.language_name, ' ')
+        FROM repository_languages rl
+        JOIN languages l ON rl.language_id = l.id
+        WHERE rl.repository_id = new.repository_id
+    ), '')
+    WHERE rowid = new.repository_id;
+END;
+
+CREATE TRIGGER repository_languages_delete AFTER DELETE ON repository_languages
+BEGIN
+    UPDATE repositories_fts
+    SET languages = COALESCE((
+        SELECT GROUP_CONCAT(l.language_name, ' ')
+        FROM repository_languages rl
+        JOIN languages l ON rl.language_id = l.id
+        WHERE rl.repository_id = old.repository_id
+    ), '')
+    WHERE rowid = old.repository_id;
+END;

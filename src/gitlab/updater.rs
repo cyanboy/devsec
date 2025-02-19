@@ -1,7 +1,7 @@
 use std::error::Error;
 
 use indicatif::ProgressBar;
-use sqlx::PgPool;
+use sqlx::SqlitePool;
 
 use crate::{
     db::{insert_language, insert_repository, insert_repository_language, NewRepository},
@@ -12,11 +12,11 @@ use crate::{
 pub struct GitLabUpdater {
     api: Api,
     group: String,
-    pool: PgPool,
+    pool: SqlitePool,
 }
 
 impl GitLabUpdater {
-    pub fn new(gitlab_token: &str, group_id: &str, pool: PgPool) -> GitLabUpdater {
+    pub fn new(gitlab_token: &str, group_id: &str, pool: SqlitePool) -> GitLabUpdater {
         let api = Api::new(&gitlab_token);
         let group = group_id.to_string();
 
@@ -58,7 +58,7 @@ impl GitLabUpdater {
                     assert_eq!(parts.len(), 5);
 
                     let src = parts[2].to_string();
-                    let id: i32 = parts[4].parse()?;
+                    let id: i64 = parts[4].parse()?;
 
                     (id, src)
                 };
@@ -72,7 +72,7 @@ impl GitLabUpdater {
                     external_id,
                     source,
                     name: project.name,
-                    namespace: project.namespace.full_name,
+                    namespace: project.namespace.full_path,
                     description: project.description,
                     created_at: project.created_at,
                     updated_at: project.updated_at,
@@ -83,7 +83,7 @@ impl GitLabUpdater {
                     forks_count: project.forks_count,
                     archived: project.archived,
                     size: project.statistics.repository_size as i64,
-                    commit_count: project.statistics.commit_count as i32,
+                    commit_count: project.statistics.commit_count as i64,
                 };
 
                 let mut tx = self.pool.begin().await?;
