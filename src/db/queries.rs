@@ -1,51 +1,14 @@
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct Repository {
-    pub id: i64,
-    pub external_id: i64,
-    pub source: String,
-    pub name: String,
-    pub namespace: String,
-    pub description: Option<String>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-    pub pushed_at: DateTime<Utc>,
-    pub web_url: String,
-    pub ssh_url: String,
-    pub forks_count: i64,
-    pub size: i64,
-    pub commit_count: i64,
-    pub private: bool,
-    pub archived: bool,
-}
+use crate::db::models::{NewRepository, Repository};
 
-#[derive(Debug)]
-pub struct NewRepository {
-    pub external_id: i64,
-    pub source: String,
-    pub name: String,
-    pub namespace: String,
-    pub description: Option<String>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-    pub pushed_at: DateTime<Utc>,
-    pub web_url: String,
-    pub ssh_url: String,
-    pub forks_count: i64,
-    pub size: i64,
-    pub commit_count: i64,
-    pub private: bool,
-    pub archived: bool,
-}
+use super::models::Language;
 
 pub async fn insert_repository(
     transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     repository: NewRepository,
-) -> Result<i64, sqlx::error::Error> {
-    let rec = sqlx::query!(
+) -> Result<Repository, sqlx::error::Error> {
+    let repo: Repository = sqlx::query_as(
         r#"
         INSERT INTO repositories
         (external_id, source, name, namespace, description, created_at, updated_at, pushed_at, ssh_url, web_url, private, forks_count, archived, size, commit_count)
@@ -65,59 +28,57 @@ pub async fn insert_repository(
             archived = archived,
             size = size,
             commit_count = commit_count
-        RETURNING id
-        "#,
-        repository.external_id,
-        repository.source,
-        repository.name,
-        repository.namespace,
-        repository.description,
-        repository.created_at,
-        repository.updated_at,
-        repository.pushed_at,
-        repository.ssh_url,
-        repository.web_url,
-        repository.private,
-        repository.forks_count,
-        repository.archived,
-        repository.size,
-        repository.commit_count,
+        RETURNING *
+        "#
     )
+    .bind(repository.external_id)
+    .bind(repository.source)
+    .bind(repository.name)
+    .bind(repository.namespace)
+    .bind(repository.description)
+    .bind(repository.created_at)
+    .bind(repository.updated_at)
+    .bind(repository.pushed_at)
+    .bind(repository.ssh_url)
+    .bind(repository.web_url)
+    .bind(repository.private)
+    .bind(repository.forks_count)
+    .bind(repository.archived)
+    .bind(repository.size)
+    .bind(repository.commit_count)
     .fetch_one(&mut **transaction)
     .await?;
 
-    Ok(rec.id)
+    Ok(repo)
 }
 
 pub async fn insert_language(
     transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
-    language_name: &str,
-) -> Result<i64, sqlx::error::Error> {
-    let rec = sqlx::query!(
+    name: &str,
+) -> Result<Language, sqlx::error::Error> {
+    let language: Option<Language> = sqlx::query_as(
         r#"
-        INSERT INTO languages (language_name)
+        INSERT INTO languages (name)
         VALUES (?)
-        ON CONFLICT (language_name) DO NOTHING
-        RETURNING id
+        ON CONFLICT (name) DO NOTHING
+        RETURNING *
         "#,
-        language_name
     )
+    .bind(name)
     .fetch_optional(&mut **transaction)
     .await?;
 
-    let language_id = match rec {
-        Some(record) => record.id,
-        None => sqlx::query!(
-            "SELECT id FROM languages WHERE language_name = ?",
-            language_name
-        )
-        .fetch_one(&mut **transaction)
-        .await?
-        .id
-        .expect("Language "),
+    let language = match language {
+        Some(lang) => lang,
+        None => {
+            sqlx::query_as::<_, Language>("SELECT id, name FROM languages WHERE name = ?")
+                .bind(name)
+                .fetch_one(&mut **transaction)
+                .await?
+        }
     };
 
-    Ok(language_id)
+    Ok(language)
 }
 
 pub async fn insert_repository_language(
@@ -126,7 +87,7 @@ pub async fn insert_repository_language(
     language_id: i64,
     percentage: f32,
 ) -> Result<(), sqlx::Error> {
-    sqlx::query!(
+    sqlx::query(
         r#"
         INSERT INTO repository_languages (repository_id, language_id, percentage)
         VALUES (?, ?, ?)
@@ -134,10 +95,10 @@ pub async fn insert_repository_language(
         DO UPDATE
         SET percentage = excluded.percentage
         "#,
-        repository_id,
-        language_id,
-        percentage
     )
+    .bind(repository_id)
+    .bind(language_id)
+    .bind(percentage)
     .execute(&mut **transaction)
     .await?;
 
@@ -147,26 +108,23 @@ pub async fn insert_repository_language(
 pub async fn get_most_frequent_languages(
     pool: &SqlitePool,
 ) -> Result<Vec<(String, f64)>, sqlx::error::Error> {
-    let results = sqlx::query!(
+    let results: Vec<(String, f64)> = sqlx::query_as(
         r#"
         SELECT
-        l.language_name AS language_name,
+        l.name,
         (SUM(cl.percentage) * 100.0) / SUM(SUM(cl.percentage)) OVER () AS usage
         FROM repository_languages cl
         JOIN languages l ON cl.language_id = l.id
         JOIN repositories c ON cl.repository_id = c.id
         WHERE c.archived = FALSE  -- Exclude archived repositories
-        GROUP BY l.language_name
+        GROUP BY l.name
         ORDER BY usage DESC;
-        "#
+        "#,
     )
     .fetch_all(pool)
     .await?;
 
-    Ok(results
-        .iter()
-        .map(|row| (row.language_name.clone(), row.usage.unwrap_or(0.0)))
-        .collect())
+    Ok(results)
 }
 
 pub async fn search_repositories(
@@ -174,8 +132,7 @@ pub async fn search_repositories(
     query: &str,
     include_archived: bool,
 ) -> Result<Vec<Repository>, sqlx::error::Error> {
-    let results = sqlx::query_as!(
-        Repository,
+    let results: Vec<Repository> = sqlx::query_as(
         r#"
         SELECT
             repo.id,
@@ -200,9 +157,9 @@ pub async fn search_repositories(
         AND (CASE WHEN ? THEN 1 ELSE repo.archived = FALSE END)
         ORDER BY bm25(repositories_fts)
         "#,
-        query,
-        include_archived
     )
+    .bind(query)
+    .bind(include_archived)
     .fetch_all(pool)
     .await?;
 

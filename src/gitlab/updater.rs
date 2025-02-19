@@ -4,7 +4,10 @@ use indicatif::ProgressBar;
 use sqlx::SqlitePool;
 
 use crate::{
-    db::{insert_language, insert_repository, insert_repository_language, NewRepository},
+    db::{
+        models::NewRepository,
+        queries::{insert_language, insert_repository, insert_repository_language},
+    },
     gitlab::api::{Api, Visibility},
     progress_bar::style_progress_bar,
 };
@@ -68,7 +71,7 @@ impl GitLabUpdater {
                     _ => true,
                 };
 
-                let codebase = NewRepository {
+                let new_repository = NewRepository {
                     external_id,
                     source,
                     name: project.name,
@@ -88,11 +91,17 @@ impl GitLabUpdater {
 
                 let mut tx = self.pool.begin().await?;
 
-                let codebase_id = insert_repository(&mut tx, codebase).await?;
+                let repo = insert_repository(&mut tx, new_repository).await?;
 
-                for lang in &project.languages {
-                    let lang_id = insert_language(&mut tx, &lang.name).await?;
-                    insert_repository_language(&mut tx, codebase_id, lang_id, lang.share).await?;
+                for project_language in &project.languages {
+                    let language = insert_language(&mut tx, &project_language.name).await?;
+                    insert_repository_language(
+                        &mut tx,
+                        repo.id,
+                        language.id,
+                        project_language.share,
+                    )
+                    .await?;
                 }
 
                 tx.commit().await?;

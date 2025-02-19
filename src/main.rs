@@ -1,9 +1,12 @@
 use clap::{Parser, Subcommand};
-use db::{get_most_frequent_languages, search_repositories};
+use db::{
+    queries::{get_most_frequent_languages, search_repositories},
+    schema::init_db,
+};
+use directories::ProjectDirs;
 use gitlab::updater::GitLabUpdater;
-use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
-use std::{env, error::Error};
+use std::error::Error;
 
 mod db;
 mod gitlab;
@@ -13,20 +16,14 @@ mod progress_bar;
 #[command(version, about, long_about = None)]
 struct Cli {
     #[command(subcommand)]
-    command: Commands,
+    command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
 enum Commands {
     Gitlab {
-        #[arg(long, value_name = "GITLAB_TOKEN", env = "GITLAB_TOKEN")]
-        auth: String,
-
-        #[arg(long, value_name = "GitLab group id", env = "GITLAB_GROUP_ID")]
-        group: String,
-
-        #[arg(long, requires = "group", help = "Get all projects in a group")]
-        update: bool,
+        #[command(subcommand)]
+        action: GitlabCommands,
     },
     Stats,
     Search {
@@ -41,43 +38,52 @@ enum Commands {
     },
 }
 
-#[derive(Serialize, Deserialize)]
-struct DevSecConfig {
-    test: String,
+#[derive(Subcommand)]
+enum GitlabCommands {
+    Update {
+        #[arg(long, value_name = "GITLAB_TOKEN")]
+        auth: String,
+
+        #[arg(short, long, value_name = "GitLab group id")]
+        group_id: String,
+    },
 }
+
+const DATABASE_URL: &str = "sqlite:devsec.db";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    dotenvy::dotenv().ok();
     let cli = Cli::parse();
 
-    let pool = SqlitePool::connect(&env::var("DATABASE_URL")?).await?;
+    // if let Some(proj_dirs) = ProjectDirs::from("", "", "devsec") {
+    //     todo!("config n stuff");
+    // }
+
+    let pool = SqlitePool::connect(DATABASE_URL).await?;
+    init_db(&pool).await?;
 
     match &cli.command {
-        Commands::Gitlab {
-            auth,
-            group,
-            update,
-        } => {
-            let gitlab_updater = GitLabUpdater::new(&auth, group, pool);
-            if *update {
+        Some(Commands::Gitlab { action }) => match action {
+            GitlabCommands::Update { auth, group_id } => {
+                let gitlab_updater = GitLabUpdater::new(&auth, group_id, pool);
+
                 match gitlab_updater.update().await {
-                    Ok(_) => println!("GitLab data updated successfully."),
+                    Ok(_) => (),
                     Err(e) => eprintln!("❌ Error updating GitLab data: {}", e),
                 }
             }
-        }
-        Commands::Stats => {
+        },
+        Some(Commands::Stats) => {
             let most_used = get_most_frequent_languages(&pool).await?;
             most_used
                 .iter()
                 .for_each(|lang| println!("{}: {:.2}%", lang.0, lang.1));
         }
-        Commands::Search {
+        Some(Commands::Search {
             query,
             json,
             include_archived,
-        } => {
+        }) => {
             let result = search_repositories(&pool, &query, *include_archived).await?;
 
             if *json {
@@ -87,6 +93,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     println!("{}", repo.web_url);
                 }
             }
+        }
+        None => {
+            todo!("Implement tui")
         }
     };
 
