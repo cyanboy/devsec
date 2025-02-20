@@ -1,12 +1,11 @@
-use std::str::FromStr;
-
 use directories::ProjectDirs;
 use sqlx::{
     sqlite::{SqliteConnectOptions, SqlitePoolOptions},
     SqlitePool,
 };
+use std::{error::Error, str::FromStr};
 
-pub async fn init_db() -> Result<SqlitePool, sqlx::Error> {
+pub async fn init_db() -> Result<SqlitePool, Box<dyn Error>> {
     let proj_dirs = match ProjectDirs::from("", "", "devsec") {
         Some(proj_dirs) => proj_dirs,
         None => {
@@ -16,6 +15,8 @@ pub async fn init_db() -> Result<SqlitePool, sqlx::Error> {
     };
 
     let data_dir = proj_dirs.data_dir();
+
+    std::fs::create_dir_all(data_dir)?;
 
     let db_url = if cfg!(debug_assertions) {
         "sqlite://devsec.db".to_string()
