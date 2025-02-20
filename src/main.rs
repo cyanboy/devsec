@@ -1,16 +1,13 @@
 use clap::{Parser, Subcommand};
-use db::{
-    queries::{get_most_frequent_languages, search_repositories},
-    schema::init_db,
-};
-use directories::ProjectDirs;
+use db::init_db;
 use gitlab::updater::GitLabUpdater;
-use sqlx::SqlitePool;
+use repositories::{get_most_frequent_languages, search_repositories};
 use std::error::Error;
 
 mod db;
 mod gitlab;
 mod progress_bar;
+mod repositories;
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -49,18 +46,10 @@ enum GitlabCommands {
     },
 }
 
-const DATABASE_URL: &str = "sqlite:devsec.db";
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
-
-    // if let Some(proj_dirs) = ProjectDirs::from("", "", "devsec") {
-    //     todo!("config n stuff");
-    // }
-
-    let pool = SqlitePool::connect(DATABASE_URL).await?;
-    init_db(&pool).await?;
+    let pool = init_db().await?;
 
     match &cli.command {
         Some(Commands::Gitlab { action }) => match action {
