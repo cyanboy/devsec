@@ -54,7 +54,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     match &cli.command {
         Some(Commands::Gitlab { action }) => match action {
             GitlabCommands::Update { auth, group_id } => {
-                let gitlab_updater = GitLabUpdaterService::new(&auth, group_id, pool);
+                let gitlab_updater = GitLabUpdaterService::new(auth, group_id, pool);
 
                 match gitlab_updater.update().await {
                     Ok(_) => (),
@@ -73,7 +73,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             json,
             include_archived,
         }) => {
-            let result = search_repositories(&pool, &query, *include_archived).await?;
+            let result = search_repositories(&pool, query, *include_archived).await?;
 
             if *json {
                 println!("{}", serde_json::to_string(&result)?);

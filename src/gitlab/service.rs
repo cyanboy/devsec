@@ -17,7 +17,7 @@ pub struct GitLabUpdaterService {
 
 impl GitLabUpdaterService {
     pub fn new(gitlab_token: &str, group_id: &str, pool: SqlitePool) -> GitLabUpdaterService {
-        let api = Api::new(&gitlab_token);
+        let api = Api::new(gitlab_token);
         let group = group_id.to_string();
 
         GitLabUpdaterService { api, group, pool }
@@ -63,11 +63,6 @@ impl GitLabUpdaterService {
                     (id, src)
                 };
 
-                let private = match project.visibility {
-                    Visibility::Public => false,
-                    _ => true,
-                };
-
                 let new_repository = NewRepository {
                     external_id,
                     source,
@@ -79,7 +74,7 @@ impl GitLabUpdaterService {
                     pushed_at: project.last_activity_at,
                     ssh_url: project.ssh_url_to_repo,
                     web_url: project.web_url,
-                    private,
+                    private: !matches!(project.visibility, Visibility::Public),
                     forks_count: project.forks_count,
                     archived: project.archived,
                     size: project.statistics.repository_size as i64,
