@@ -6,7 +6,7 @@ use sqlx::SqlitePool;
 use crate::{
     gitlab::{api::Api, models::Visibility},
     progress_bar::style_progress_bar,
-    repositories::{insert_language, insert_repository, insert_repository_language, NewRepository},
+    repositories::{NewRepository, insert_language, insert_repository, insert_repository_language},
 };
 
 pub struct GitLabUpdaterService {

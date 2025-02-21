@@ -1,6 +1,6 @@
 use reqwest::{
-    header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE},
     Client,
+    header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue},
 };
 use serde_json::json;
 
@@ -53,11 +53,14 @@ impl Api {
     pub fn new(token: &str) -> Self {
         let mut headers = HeaderMap::new();
 
-        if let Ok(mut token) = HeaderValue::from_str(&format!("Bearer {token}")) {
-            token.set_sensitive(true);
-            headers.insert(AUTHORIZATION, token);
-        } else {
-            eprintln!("Could not set Authorization header");
+        match HeaderValue::from_str(&format!("Bearer {token}")) {
+            Ok(mut token) => {
+                token.set_sensitive(true);
+                headers.insert(AUTHORIZATION, token);
+            }
+            _ => {
+                eprintln!("Could not set Authorization header");
+            }
         }
 
         let auth_header =

@@ -1,7 +1,7 @@
 use directories::ProjectDirs;
 use sqlx::{
-    sqlite::{SqliteConnectOptions, SqlitePoolOptions},
     SqlitePool,
+    sqlite::{SqliteConnectOptions, SqlitePoolOptions},
 };
 use std::{error::Error, str::FromStr};
 
