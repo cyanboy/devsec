@@ -4,7 +4,7 @@ use indicatif::ProgressBar;
 use sqlx::SqlitePool;
 
 use crate::{
-    gitlab::api::{Api, Visibility},
+    gitlab::{api::Api, models::Visibility},
     progress_bar::style_progress_bar,
     repositories::{insert_language, insert_repository, insert_repository_language, NewRepository},
 };
