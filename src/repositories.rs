@@ -1,6 +1,6 @@
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
+use time::OffsetDateTime;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Repository {
@@ -10,9 +10,12 @@ pub struct Repository {
     pub name: String,
     pub namespace: String,
     pub description: Option<String>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-    pub pushed_at: DateTime<Utc>,
+    #[serde(with = "time::serde::rfc3339")]
+    pub created_at: OffsetDateTime,
+    #[serde(with = "time::serde::rfc3339")]
+    pub updated_at: OffsetDateTime,
+    #[serde(with = "time::serde::rfc3339")]
+    pub pushed_at: OffsetDateTime,
     pub web_url: String,
     pub ssh_url: String,
     pub forks_count: i64,
@@ -29,9 +32,9 @@ pub struct NewRepository {
     pub name: String,
     pub namespace: String,
     pub description: Option<String>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-    pub pushed_at: DateTime<Utc>,
+    pub created_at: OffsetDateTime,
+    pub updated_at: OffsetDateTime,
+    pub pushed_at: OffsetDateTime,
     pub web_url: String,
     pub ssh_url: String,
     pub forks_count: i64,
