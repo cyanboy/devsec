@@ -25,7 +25,7 @@ enum Commands {
         #[arg(short, long, value_name = "search query")]
         query: String,
 
-        #[arg(long, help = "Return result as json")]
+        #[arg(default_value_t = true, long, help = "Return result as json")]
         json: bool,
 
         #[arg(long, help = "Include archived repositories in search results")]

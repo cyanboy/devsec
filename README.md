@@ -29,7 +29,7 @@ devsec update gitlab --auth <GITLAB TOKEN> --group-id <GITLAB GROUP ID>
 
 ### Search for repository
 ```sh
-devsec search "backend"
+devsec search --json --query "backend"
 ```
 
 ## Configuration ⚙️
