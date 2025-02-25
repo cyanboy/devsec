@@ -49,38 +49,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
     let pool = init_db().await?;
 
-    match &cli.command {
-        Some(Commands::Update { service }) => match service {
-            UpdateServices::Gitlab { auth, group_id } => {
-                let gitlab_updater = GitLabUpdaterService::new(auth, group_id, pool);
-
-                match gitlab_updater.update().await {
-                    Ok(_) => (),
-                    Err(e) => eprintln!("❌ Error updating GitLab data: {}", e),
-                }
-            }
-        },
-        Some(Commands::Stats) => {
-            let most_used = get_most_frequent_languages(&pool).await?;
-            most_used
-                .iter()
-                .for_each(|lang| println!("{}: {:.2}%", lang.0, lang.1));
-        }
+    match cli.command {
+        Some(Commands::Update { service }) => handle_update(service, pool).await?,
+        Some(Commands::Stats) => handle_stats(&pool).await?,
         Some(Commands::Search {
             query,
             json,
             include_archived,
-        }) => {
-            let result = search_repositories(&pool, query, *include_archived).await?;
-
-            if *json {
-                println!("{}", serde_json::to_string(&result)?);
-            } else {
-                for repo in result {
-                    println!("{} {} {}", repo.name, repo.namespace, repo.web_url);
-                }
-            }
-        }
+        }) => handle_search(&pool, &query, json, include_archived).await?,
         None => {
             color_eyre::install()?;
             let terminal = ratatui::init();
@@ -90,5 +66,51 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     };
 
+    Ok(())
+}
+
+async fn handle_update(
+    service: UpdateServices,
+    pool: sqlx::SqlitePool,
+) -> Result<(), Box<dyn Error>> {
+    match service {
+        UpdateServices::Gitlab { auth, group_id } => {
+            let gitlab_updater = GitLabUpdaterService::new(&auth, &group_id, pool);
+
+            if let Err(e) = gitlab_updater.update().await {
+                eprintln!(
+                    "❌ Error updating GitLab data: {}\n🔍 Cause: {:?}",
+                    e,
+                    e.source()
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+async fn handle_stats(pool: &sqlx::SqlitePool) -> Result<(), Box<dyn Error>> {
+    let most_used = get_most_frequent_languages(pool).await?;
+    for lang in most_used {
+        println!("{}: {:.2}%", lang.0, lang.1);
+    }
+    Ok(())
+}
+
+async fn handle_search(
+    pool: &sqlx::SqlitePool,
+    query: &str,
+    json: bool,
+    include_archived: bool,
+) -> Result<(), Box<dyn Error>> {
+    let result = search_repositories(pool, query, include_archived).await?;
+
+    if json {
+        println!("{}", serde_json::to_string(&result)?);
+    } else {
+        for repo in result {
+            println!("{} {} {}", repo.namespace, repo.name, repo.web_url);
+        }
+    }
     Ok(())
 }
