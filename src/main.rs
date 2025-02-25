@@ -25,7 +25,7 @@ enum Commands {
         #[arg(short, long, value_name = "search query")]
         query: String,
 
-        #[arg(default_value_t = true, long, help = "Return result as json")]
+        #[arg(long, help = "Return result as json")]
         json: bool,
 
         #[arg(long, help = "Include archived repositories in search results")]
@@ -77,7 +77,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 println!("{}", serde_json::to_string(&result)?);
             } else {
                 for repo in result {
-                    println!("{}", repo.web_url);
+                    println!("{} {} {}", repo.name, repo.namespace, repo.web_url);
                 }
             }
         }
