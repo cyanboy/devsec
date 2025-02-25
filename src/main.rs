@@ -120,7 +120,7 @@ async fn search(
     } else {
         let mut table = Table::new(&result);
         table.with(Style::modern());
-        print!("{}", table.to_string());
+        println!("{table}");
     }
     Ok(())
 }
