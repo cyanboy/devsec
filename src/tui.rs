@@ -20,3 +20,9 @@ fn render(frame: &mut Frame) {
 pub struct App {
     exit: bool,
 }
+
+impl App {
+    pub fn new() -> Self {
+        Self { exit: false }
+    }
+}

@@ -1,14 +1,11 @@
 use clap::{Parser, Subcommand};
-use db::init_db;
-use gitlab::service::GitLabUpdaterService;
-use repositories::{get_most_frequent_languages, search_repositories};
+use devsec::{
+    db::init_db,
+    gitlab::service::GitLabUpdaterService,
+    repositories::{get_most_frequent_languages, search_repositories},
+    tui,
+};
 use std::error::Error;
-
-mod db;
-mod gitlab;
-mod progress_bar;
-mod repositories;
-mod tui;
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -19,13 +16,13 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    Gitlab {
+    Update {
         #[command(subcommand)]
-        action: GitlabCommands,
+        service: UpdateServices,
     },
     Stats,
     Search {
-        #[arg(value_name = "search query")]
+        #[arg(short, long, value_name = "search query")]
         query: String,
 
         #[arg(long, help = "Return result as json")]
@@ -37,8 +34,8 @@ enum Commands {
 }
 
 #[derive(Subcommand)]
-enum GitlabCommands {
-    Update {
+enum UpdateServices {
+    Gitlab {
         #[arg(long, value_name = "GITLAB_TOKEN", env = "GITLAB_TOKEN")]
         auth: String,
 
@@ -53,8 +50,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let pool = init_db().await?;
 
     match &cli.command {
-        Some(Commands::Gitlab { action }) => match action {
-            GitlabCommands::Update { auth, group_id } => {
+        Some(Commands::Update { service }) => match service {
+            UpdateServices::Gitlab { auth, group_id } => {
                 let gitlab_updater = GitLabUpdaterService::new(auth, group_id, pool);
 
                 match gitlab_updater.update().await {

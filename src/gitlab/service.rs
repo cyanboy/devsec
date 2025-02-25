@@ -4,13 +4,14 @@ use indicatif::ProgressBar;
 use sqlx::SqlitePool;
 
 use crate::{
-    gitlab::{api::Api, models::Visibility},
     progress_bar::style_progress_bar,
     repositories::{
         NewRepository, insert_language_and_verify, insert_repository_and_verify,
         insert_repository_language_and_verify,
     },
 };
+
+use super::{api::Api, models::Visibility};
 
 pub struct GitLabUpdaterService {
     api: Api,

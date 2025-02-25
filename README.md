@@ -2,6 +2,12 @@
 A fast, lightweight **DevSecOps CLI tool** for fetching and analyzing repositories from GitLab.
 It helps **automate security checks**, **analyze repository metadata**, and **search repositories efficiently** using SQLite FTS5.
 
+## Features ✨
+- 🚀 Fetch and analyze GitLab repositories
+- 🔍 Full-text search using SQLite FTS5
+- 🔒 Automate security checks
+- 📊 Extract and inspect repository metadata
+
 ## Installation 🚀
 ### Install via Cargo
 ```sh
@@ -18,15 +24,20 @@ cargo build --release
 
 ### Update database with data from GitLab
 ```sh
-devsec gitlab update --auth <GITLAB TOKEN> --group-id <GITLAB GROUP ID>
+devsec update gitlab --auth <GITLAB TOKEN> --group-id <GITLAB GROUP ID>
+```
+
+### Search for repository
+```sh
+devsec search "backend"
 ```
 
 ## Configuration ⚙️
 
 DevSec stores its SQLite database in:
-- **Linux**: `~/.local/share/devsec/devsec.sqlite`
-- **macOS**: `~/Library/Application Support/devsec/devsec.sqlite`
-- **Windows**: `%APPDATA%\devsec\devsec.sqlite`
+- **Linux**: `$XDG_DATA_HOME/devsec/devsec.db` or `$HOME/.local/share/devsec/devsec.db`
+- **macOS**: `$HOME/Library/Application Support/devsec/devsec.db`
+- **Windows**: `%APPDATA%\devsec\devsec.db`
 
 ## License
 
