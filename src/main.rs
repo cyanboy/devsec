@@ -29,6 +29,14 @@ enum Commands {
 
         #[arg(long, help = "Include archived repositories in search results")]
         include_archived: bool,
+
+        #[arg(
+            short,
+            long,
+            default_value_t = 10,
+            help = "Limit the number of search results"
+        )]
+        limit: i64,
     },
 }
 
@@ -55,7 +63,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             query,
             json,
             include_archived,
-        }) => handle_search(&pool, &query, json, include_archived).await?,
+            limit,
+        }) => handle_search(&pool, &query, json, include_archived, limit).await?,
         None => {}
     };
 
@@ -95,8 +104,9 @@ async fn handle_search(
     query: &str,
     json: bool,
     include_archived: bool,
+    limit: i64,
 ) -> Result<(), Box<dyn Error>> {
-    let result = search_repositories(pool, query, include_archived).await?;
+    let result = search_repositories(pool, query, include_archived, limit).await?;
 
     if json {
         println!("{}", serde_json::to_string(&result)?);

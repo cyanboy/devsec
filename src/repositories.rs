@@ -210,6 +210,7 @@ pub async fn search_repositories(
     pool: &SqlitePool,
     query: &str,
     include_archived: bool,
+    limit: i64,
 ) -> Result<Vec<Repository>, sqlx::error::Error> {
     let results: Vec<Repository> = sqlx::query_as!(
         Repository,
@@ -236,9 +237,11 @@ pub async fn search_repositories(
         WHERE repositories_fts MATCH ?
         AND (CASE WHEN ? THEN 1 ELSE repo.archived = FALSE END)
         ORDER BY bm25(repositories_fts)
+        LIMIT ?
         "#,
         query,
-        include_archived
+        include_archived,
+        limit,
     )
     .fetch_all(pool)
     .await?;
