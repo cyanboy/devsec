@@ -5,6 +5,7 @@ use devsec::{
     repositories::{get_most_frequent_languages, search_repositories},
 };
 use std::error::Error;
+use tabled::{Table, settings::Style};
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -19,7 +20,10 @@ enum Commands {
         #[command(subcommand)]
         service: UpdateServices,
     },
-    Stats,
+    Stats {
+        #[arg(long, help = "Return stats as JSON")]
+        json: bool,
+    },
     Search {
         #[arg(short, long, value_name = "search query")]
         query: String,
@@ -57,24 +61,21 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let pool = init_db().await?;
 
     match cli.command {
-        Some(Commands::Update { service }) => handle_update(service, pool).await?,
-        Some(Commands::Stats) => handle_stats(&pool).await?,
+        Some(Commands::Update { service }) => update(service, pool).await?,
+        Some(Commands::Stats { json }) => stats(&pool, json).await?,
         Some(Commands::Search {
             query,
             json,
             include_archived,
             limit,
-        }) => handle_search(&pool, &query, json, include_archived, limit).await?,
+        }) => search(&pool, &query, json, include_archived, limit).await?,
         None => {}
     };
 
     Ok(())
 }
 
-async fn handle_update(
-    service: UpdateServices,
-    pool: sqlx::SqlitePool,
-) -> Result<(), Box<dyn Error>> {
+async fn update(service: UpdateServices, pool: sqlx::SqlitePool) -> Result<(), Box<dyn Error>> {
     match service {
         UpdateServices::Gitlab { auth, group_id } => {
             let gitlab_updater = GitLabUpdaterService::new(&auth, &group_id, pool);
@@ -91,7 +92,7 @@ async fn handle_update(
     Ok(())
 }
 
-async fn handle_stats(pool: &sqlx::SqlitePool) -> Result<(), Box<dyn Error>> {
+async fn stats(pool: &sqlx::SqlitePool, json: bool) -> Result<(), Box<dyn Error>> {
     let most_used = get_most_frequent_languages(pool).await?;
     for lang in most_used {
         println!("{}: {:.2}%", lang.0, lang.1);
@@ -99,7 +100,7 @@ async fn handle_stats(pool: &sqlx::SqlitePool) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-async fn handle_search(
+async fn search(
     pool: &sqlx::SqlitePool,
     query: &str,
     json: bool,
@@ -111,9 +112,9 @@ async fn handle_search(
     if json {
         println!("{}", serde_json::to_string(&result)?);
     } else {
-        for repo in result {
-            println!("{} {} {}", repo.namespace, repo.name, repo.web_url);
-        }
+        let mut table = Table::new(&result);
+        table.with(Style::modern());
+        print!("{}", table.to_string());
     }
     Ok(())
 }

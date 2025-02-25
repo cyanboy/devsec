@@ -1,26 +1,47 @@
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
+use tabled::Tabled;
 use time::OffsetDateTime;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Tabled, Serialize, Deserialize, Debug)]
 pub struct Repository {
+    #[tabled(skip)]
     pub id: i64,
+
+    #[tabled(skip)]
     pub external_id: i64,
+
+    #[tabled(skip)]
     pub source: String,
+
+    #[tabled(format("{}/{}", self.namespace, self.name))]
     pub name: String,
+
+    #[tabled(skip)]
     pub namespace: String,
+
+    #[tabled(skip)]
+    pub web_url: String,
+
+    #[tabled(skip)]
     pub description: Option<String>,
+
     #[serde(with = "time::serde::rfc3339")]
     pub created_at: OffsetDateTime,
+
     #[serde(with = "time::serde::rfc3339")]
+    #[tabled(skip)]
     pub updated_at: OffsetDateTime,
+
     #[serde(with = "time::serde::rfc3339")]
     pub pushed_at: OffsetDateTime,
-    pub web_url: String,
+
+    #[tabled(skip)]
     pub ssh_url: String,
-    pub forks_count: i64,
+
     pub size: i64,
     pub commit_count: i64,
+    pub forks_count: i64,
     pub private: bool,
     pub archived: bool,
 }
@@ -42,6 +63,16 @@ pub struct NewRepository {
     pub commit_count: i64,
     pub private: bool,
     pub archived: bool,
+}
+
+#[derive(Debug, Serialize)]
+pub struct RepositoryStatistics {
+    pub total_repos: i64,
+    pub total_commit_count: i64,
+    pub avg_commit_per_repo: f64,
+    pub largest_repo: String,
+    pub most_active_repo: String,
+    pub most_used_language: String,
 }
 
 #[derive(Debug)]
@@ -205,6 +236,50 @@ pub async fn get_most_frequent_languages(
 
     Ok(results)
 }
+
+// pub async fn get_repository_statistics(
+//     pool: &SqlitePool,
+// ) -> Result<RepositoryStatistics, sqlx::error::Error> {
+//     let row = sqlx::query!(
+//         r#"
+//         SELECT
+//             COUNT(*) as total_repos,
+//             SUM(commit_count) as total_commit_count,
+//             AVG(commit_count) as avg_commit_per_repo,
+//             (SELECT name FROM repositories WHERE archived = FALSE ORDER BY size DESC LIMIT 1) as largest_repo,
+//             (SELECT name FROM repositories WHERE archived = FALSE ORDER BY commit_count DESC LIMIT 1) as most_active_repo
+//         FROM repositories
+//         WHERE archived = FALSE
+//         "#
+//     ).fetch_one(pool)
+//     .await?;
+
+//     let most_used_language = sqlx::query!(
+//         r#"
+//         SELECT language
+//         FROM repositories
+//         WHERE archived = FALSE
+//         GROUP BY language
+//         ORDER BY COUNT(*) DESC
+//         LIMIT 1
+//         "#
+//     )
+//     .fetch_optional(pool)
+//     .await?
+//     .map(|row| row.language.unwrap_or_else(|| "Unknown".to_string()))
+//     .unwrap_or("Unknown".to_string());
+
+//     let stats = RepositoryStatistics {
+//         total_repos: todo!(),
+//         total_commit_count: todo!(),
+//         avg_commit_per_repo: todo!(),
+//         largest_repo: todo!(),
+//         most_active_repo: todo!(),
+//         most_used_language: todo!(),
+//     };
+
+//     Ok(stats)
+// }
 
 pub async fn search_repositories(
     pool: &SqlitePool,

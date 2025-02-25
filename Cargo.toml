@@ -24,5 +24,6 @@ sqlx = { version = "0.8", features = [
     "runtime-tokio",
     "tls-rustls",
 ] }
+tabled = "0.18.0"
 time = { version = "0.3", features = ["serde-well-known"] }
 tokio = { version = "1", features = ["full"] }
