@@ -3,7 +3,6 @@ use devsec::{
     db::init_db,
     gitlab::service::GitLabUpdaterService,
     repositories::{get_most_frequent_languages, search_repositories},
-    tui,
 };
 use std::error::Error;
 
@@ -57,13 +56,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             json,
             include_archived,
         }) => handle_search(&pool, &query, json, include_archived).await?,
-        None => {
-            color_eyre::install()?;
-            let terminal = ratatui::init();
-            let app_result = tui::run(terminal);
-            ratatui::restore();
-            app_result?
-        }
+        None => {}
     };
 
     Ok(())
