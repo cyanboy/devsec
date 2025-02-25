@@ -35,7 +35,7 @@ enum Commands {
         include_archived: bool,
 
         #[arg(
-            short,
+            short = 'n',
             long,
             default_value_t = 10,
             help = "Limit the number of search results"
