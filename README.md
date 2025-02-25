@@ -1,17 +1,33 @@
-# devsec-cli
-A command line tool for DevSecOps
+# DevSec 🛡️
+A fast, lightweight **DevSecOps CLI tool** for fetching and analyzing repositories from GitLab.
+It helps **automate security checks**, **analyze repository metadata**, and **search repositories efficiently** using SQLite FTS5.
 
-## Usage
+## Installation 🚀
+### Install via Cargo
+```sh
+cargo install devsec
 ```
-Usage: devsec gitlab [OPTIONS] --auth <GITLAB_TOKEN> --output <FILE>
+### Build from Source
+```sh
+git clone https://github.com/yourusername/devsec.git
+cd devsec
+cargo build --release
+```
 
-Options:
-      --auth <GITLAB_TOKEN>
-      --org <Group id>
-      --projects             Get all projects in a group
-  -o, --output <FILE>
-  -h, --help                 Print help
+## Usage ⚡️
+
+### Update database with data from GitLab
+```sh
+devsec gitlab update --auth <GITLAB TOKEN> --group-id <GITLAB GROUP ID>
 ```
+
+## Configuration ⚙️
+
+DevSec stores its SQLite database in:
+- **Linux**: `~/.local/share/devsec/devsec.sqlite`
+- **macOS**: `~/Library/Application Support/devsec/devsec.sqlite`
+- **Windows**: `%APPDATA%\devsec\devsec.sqlite`
+
 ## License
 
 Licensed under either of
@@ -24,3 +40,5 @@ Licensed under either of
 at your option.
 
 ## Contribution
+
+Unless you explicitly state otherwise, any Contribution intentionally submitted for inclusion in the work by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.

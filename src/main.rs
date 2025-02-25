@@ -39,7 +39,7 @@ enum Commands {
 #[derive(Subcommand)]
 enum GitlabCommands {
     Update {
-        #[arg(long, value_name = "GITLAB_TOKEN")]
+        #[arg(long, value_name = "GITLAB_TOKEN", env = "GITLAB_TOKEN")]
         auth: String,
 
         #[arg(short, long, value_name = "GitLab group id")]
