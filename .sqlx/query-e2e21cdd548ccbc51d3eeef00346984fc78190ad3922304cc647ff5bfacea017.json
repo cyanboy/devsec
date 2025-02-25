@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT\n        l.name,\n        COALESCE((SUM(cl.percentage) * 100.0) / SUM(SUM(cl.percentage)) OVER (), 0.0) AS usage\n        FROM repository_languages cl\n        JOIN languages l ON cl.language_id = l.id\n        JOIN repositories c ON cl.repository_id = c.id\n        WHERE c.archived = FALSE  -- Exclude archived repositories\n        GROUP BY l.name\n        ORDER BY usage DESC;\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "name",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "usage",
+        "ordinal": 1,
+        "type_info": "Float"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "e2e21cdd548ccbc51d3eeef00346984fc78190ad3922304cc647ff5bfacea017"
+}
