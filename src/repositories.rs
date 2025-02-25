@@ -57,7 +57,7 @@ pub struct RepositoryLanguage {
     pub percentage: f64,
 }
 
-pub async fn insert_repository(
+pub async fn insert_repository_and_verify(
     transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     repository: NewRepository,
 ) -> Result<Repository, sqlx::error::Error> {
@@ -138,7 +138,7 @@ pub async fn insert_repository(
     Ok(repo)
 }
 
-pub async fn insert_language(
+pub async fn insert_language_and_verify(
     transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     name: &str,
 ) -> Result<Language, sqlx::error::Error> {
@@ -158,7 +158,7 @@ pub async fn insert_language(
     Ok(language)
 }
 
-pub async fn insert_repository_language(
+pub async fn insert_repository_language_and_verify(
     transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     repository_id: i64,
     language_id: i64,

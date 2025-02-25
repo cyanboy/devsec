@@ -8,6 +8,7 @@ mod db;
 mod gitlab;
 mod progress_bar;
 mod repositories;
+mod tui;
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -84,7 +85,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
             }
         }
         None => {
-            todo!("Implement tui")
+            color_eyre::install()?;
+            let terminal = ratatui::init();
+            let app_result = tui::run(terminal);
+            ratatui::restore();
+            app_result?
         }
     };
 

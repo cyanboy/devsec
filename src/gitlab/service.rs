@@ -6,7 +6,10 @@ use sqlx::SqlitePool;
 use crate::{
     gitlab::{api::Api, models::Visibility},
     progress_bar::style_progress_bar,
-    repositories::{NewRepository, insert_language, insert_repository, insert_repository_language},
+    repositories::{
+        NewRepository, insert_language_and_verify, insert_repository_and_verify,
+        insert_repository_language_and_verify,
+    },
 };
 
 pub struct GitLabUpdaterService {
@@ -83,11 +86,12 @@ impl GitLabUpdaterService {
 
                 let mut tx = self.pool.begin().await?;
 
-                let repo = insert_repository(&mut tx, new_repository).await?;
+                let repo = insert_repository_and_verify(&mut tx, new_repository).await?;
 
                 for project_language in &project.languages {
-                    let language = insert_language(&mut tx, &project_language.name).await?;
-                    insert_repository_language(
+                    let language =
+                        insert_language_and_verify(&mut tx, &project_language.name).await?;
+                    insert_repository_language_and_verify(
                         &mut tx,
                         repo.id,
                         language.id,
