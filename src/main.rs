@@ -5,7 +5,13 @@ use devsec::{
     repositories::{get_most_frequent_languages, search_repositories},
 };
 use std::error::Error;
-use tabled::{Table, settings::Style};
+use tabled::{
+    Table,
+    settings::{
+        Alignment, Style,
+        object::{Columns, Object, Rows, Segment},
+    },
+};
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 use tabled::Tabled;
-use time::OffsetDateTime;
+use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 #[derive(Tabled, Serialize, Deserialize, Debug)]
 pub struct Repository {
@@ -14,19 +14,20 @@ pub struct Repository {
     #[tabled(skip)]
     pub source: String,
 
-    #[tabled(format("{}/{}", self.namespace, self.name))]
+    #[tabled(skip)]
     pub name: String,
 
     #[tabled(skip)]
     pub namespace: String,
 
-    #[tabled(skip)]
+    #[tabled(rename = "url")]
     pub web_url: String,
 
     #[tabled(skip)]
     pub description: Option<String>,
 
     #[serde(with = "time::serde::rfc3339")]
+    #[tabled(display("display_offset_datetime"))]
     pub created_at: OffsetDateTime,
 
     #[serde(with = "time::serde::rfc3339")]
@@ -34,6 +35,7 @@ pub struct Repository {
     pub updated_at: OffsetDateTime,
 
     #[serde(with = "time::serde::rfc3339")]
+    #[tabled(display("display_offset_datetime"))]
     pub pushed_at: OffsetDateTime,
 
     #[tabled(skip)]
@@ -44,6 +46,13 @@ pub struct Repository {
     pub forks_count: i64,
     pub private: bool,
     pub archived: bool,
+}
+
+fn display_offset_datetime(offset_datetime: &OffsetDateTime) -> String {
+    match offset_datetime.format(&Rfc3339) {
+        Ok(rfc3339) => rfc3339,
+        Err(error) => panic!("Could not format OffsetDateTime: {}", error),
+    }
 }
 
 #[derive(Debug)]
