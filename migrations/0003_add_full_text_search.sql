@@ -1,7 +1,7 @@
 CREATE VIRTUAL
 TABLE repositories_fts USING fts5 (
     name, namespace, description, languages,
-    tokenize = 'unicode61 remove_diacritics 2'
+    tokenize = "unicode61 remove_diacritics 2"
 );
 
 INSERT INTO
