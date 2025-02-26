@@ -4,7 +4,10 @@ use devsec::{
     statistics::service::StatisticsService,
 };
 use std::error::Error;
-use tabled::{Table, settings::Style};
+use tabled::{
+    Table,
+    settings::{Rotate, Style},
+};
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -108,6 +111,7 @@ async fn stats(
     } else {
         let mut table = Table::new(vec![&data]);
         table.with(Style::modern());
+        table.with((Rotate::Left, Rotate::Top));
         println!("{table}");
     }
 

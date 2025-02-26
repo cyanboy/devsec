@@ -47,13 +47,16 @@ impl<'a> StatisticsService<'a> {
 
         let public_repo_count = self.get_public_repo_count().await?;
 
+        let newest_repository = self.get_newest_repo().await?;
+
         Ok(RepoStats {
             total_repos: row.total_repos,
-            largest_repo: row.largest_repo.unwrap_or("".to_string()),
-            most_active_repo: row.most_active_repo.unwrap_or("".to_string()),
+            largest_repo: row.largest_repo.unwrap_or_default(),
+            most_active_repo: row.most_active_repo.unwrap_or_default(),
+            newest_repository,
             most_used_language,
-            public_repo_count,
             private_repo_count,
+            public_repo_count,
         })
     }
 
@@ -77,5 +80,16 @@ impl<'a> StatisticsService<'a> {
         .fetch_one(self.pool)
         .await?
         .public_count)
+    }
+
+    async fn get_newest_repo(&self) -> Result<String, sqlx::Error> {
+        Ok(sqlx::query!(
+            r#"
+            SELECT name FROM repositories WHERE archived = FALSE ORDER BY created_at DESC LIMIT 1;
+            "#
+        )
+        .fetch_one(self.pool)
+        .await?
+        .name)
     }
 }
