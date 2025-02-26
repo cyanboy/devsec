@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n        INSERT INTO languages (name)\n        VALUES (?)\n        ON CONFLICT (name) DO UPDATE SET name = excluded.name\n        RETURNING id, name\n        ",
+  "query": "\n            INSERT INTO languages (name)\n            VALUES (?)\n            ON CONFLICT (name) DO UPDATE SET name = excluded.name\n            RETURNING id, name\n            ",
   "describe": {
     "columns": [
       {
@@ -22,5 +22,5 @@
       false
     ]
   },
-  "hash": "c4282e153f373e5d4e5ed04039ad0582a601fbcbe252d52b928b7edc44f77edb"
+  "hash": "e4c483f8aae6e28d3e8a4ee004936897f71f559951078f7524831c83003dfed8"
 }

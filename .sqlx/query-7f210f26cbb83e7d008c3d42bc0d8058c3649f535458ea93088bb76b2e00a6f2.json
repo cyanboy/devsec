@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n        SELECT\n            repo.id,\n            repo.external_id,\n            repo.source,\n            repo.name,\n            repo.namespace,\n            repo.description,\n            repo.created_at as \"created_at: _\",\n            repo.updated_at as \"updated_at: _\",\n            repo.pushed_at as \"pushed_at: _\",\n            repo.ssh_url,\n            repo.web_url,\n            repo.private,\n            repo.forks_count,\n            repo.archived,\n            repo.size,\n            repo.commit_count\n        FROM repositories repo\n        JOIN repositories_fts ON repositories_fts.rowid = repo.id\n        WHERE repositories_fts MATCH ?\n        AND (CASE WHEN ? THEN 1 ELSE repo.archived = FALSE END)\n        ORDER BY bm25(repositories_fts)\n        LIMIT ?\n        ",
+  "query": "\n            SELECT\n                repo.id,\n                repo.external_id,\n                repo.source,\n                repo.name,\n                repo.namespace,\n                repo.description,\n                repo.created_at as \"created_at: _\",\n                repo.updated_at as \"updated_at: _\",\n                repo.pushed_at as \"pushed_at: _\",\n                repo.ssh_url,\n                repo.web_url,\n                repo.private,\n                repo.forks_count,\n                repo.archived,\n                repo.size,\n                repo.commit_count\n            FROM repositories repo\n            JOIN repositories_fts ON repositories_fts.rowid = repo.id\n            WHERE repositories_fts MATCH ?\n            AND (CASE WHEN ? THEN 1 ELSE repo.archived = FALSE END)\n            ORDER BY bm25(repositories_fts)\n            LIMIT ?\n            ",
   "describe": {
     "columns": [
       {
@@ -106,5 +106,5 @@
       false
     ]
   },
-  "hash": "1e3c86c608465899573b699ee4d4017485c31e8474b3062cd9866ed386677de5"
+  "hash": "7f210f26cbb83e7d008c3d42bc0d8058c3649f535458ea93088bb76b2e00a6f2"
 }

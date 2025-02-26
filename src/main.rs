@@ -1,17 +1,10 @@
 use clap::{Parser, Subcommand};
 use devsec::{
-    db::init_db,
-    gitlab::service::GitLabUpdaterService,
-    repositories::{get_most_frequent_languages, search_repositories},
+    db::init_db, gitlab::service::GitLabUpdaterService, repositories::service::RepositoryService,
+    statistics::service::StatisticsService,
 };
 use std::error::Error;
-use tabled::{
-    Table,
-    settings::{
-        Alignment, Style,
-        object::{Columns, Object, Rows, Segment},
-    },
-};
+use tabled::{Table, settings::Style};
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -66,25 +59,31 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
     let pool = init_db().await?;
 
+    let repository_service = RepositoryService::new(&pool);
+    let statistics_service = StatisticsService::new(&pool);
+
     match cli.command {
-        Some(Commands::Update { service }) => update(service, pool).await?,
-        Some(Commands::Stats { json }) => stats(&pool, json).await?,
+        Some(Commands::Update { service }) => update(service, repository_service).await?,
+        Some(Commands::Stats { json }) => stats(statistics_service, json).await?,
         Some(Commands::Search {
             query,
             json,
             include_archived,
             limit,
-        }) => search(&pool, &query, json, include_archived, limit).await?,
+        }) => search(repository_service, &query, json, include_archived, limit).await?,
         None => {}
     };
 
     Ok(())
 }
 
-async fn update(service: UpdateServices, pool: sqlx::SqlitePool) -> Result<(), Box<dyn Error>> {
+async fn update(
+    service: UpdateServices,
+    repos: RepositoryService<'_>,
+) -> Result<(), Box<dyn Error>> {
     match service {
         UpdateServices::Gitlab { auth, group_id } => {
-            let gitlab_updater = GitLabUpdaterService::new(&auth, &group_id, pool);
+            let gitlab_updater = GitLabUpdaterService::new(&auth, &group_id, &repos);
 
             if let Err(e) = gitlab_updater.update().await {
                 eprintln!(
@@ -98,27 +97,38 @@ async fn update(service: UpdateServices, pool: sqlx::SqlitePool) -> Result<(), B
     Ok(())
 }
 
-async fn stats(pool: &sqlx::SqlitePool, json: bool) -> Result<(), Box<dyn Error>> {
-    let most_used = get_most_frequent_languages(pool).await?;
-    for lang in most_used {
-        println!("{}: {:.2}%", lang.0, lang.1);
+async fn stats(
+    statistics_service: StatisticsService<'_>,
+    json: bool,
+) -> Result<(), Box<dyn Error>> {
+    let data = statistics_service.get_repository_statistics().await?;
+
+    if json {
+        println!("{}", serde_json::to_string(&data)?);
+    } else {
+        let mut table = Table::new(vec![&data]);
+        table.with(Style::modern());
+        println!("{table}");
     }
+
     Ok(())
 }
 
 async fn search(
-    pool: &sqlx::SqlitePool,
+    repository_service: RepositoryService<'_>,
     query: &str,
     json: bool,
     include_archived: bool,
     limit: i64,
 ) -> Result<(), Box<dyn Error>> {
-    let result = search_repositories(pool, query, include_archived, limit).await?;
+    let data = repository_service
+        .search_repositories(query, include_archived, limit)
+        .await?;
 
     if json {
-        println!("{}", serde_json::to_string(&result)?);
+        println!("{}", serde_json::to_string(&data)?);
     } else {
-        let mut table = Table::new(&result);
+        let mut table = Table::new(&data);
         table.with(Style::modern());
         println!("{table}");
     }
