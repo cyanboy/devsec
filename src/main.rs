@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use devsec::{
-    db::init_db, gitlab::service::GitLabUpdaterService, repositories::service::RepositoryService,
-    statistics::service::StatisticsService,
+    db::init_db, gitlab::updater::GitLabUpdaterService, repositories::RepositoryService,
+    statistics::StatisticsService,
 };
 use std::error::Error;
 use tabled::{
