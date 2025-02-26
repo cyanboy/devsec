@@ -3,7 +3,7 @@ use std::error::Error;
 use indicatif::ProgressBar;
 
 use crate::{
-    gitlab::{api::Api, models::Visibility},
+    gitlab::api::{Api, model::Visibility},
     repositories::{NewRepository, RepositoryService},
     utils::progress_bar::style_progress_bar,
 };
