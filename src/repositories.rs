@@ -3,7 +3,7 @@ use sqlx::{Sqlite, SqlitePool, Transaction};
 use tabled::Tabled;
 use time::OffsetDateTime;
 
-use crate::utils::display_offset_datetime;
+use crate::utils::repositories::display_offset_datetime;
 
 #[derive(Tabled, Serialize, Deserialize, Debug)]
 pub struct Repository {

@@ -4,8 +4,8 @@ use indicatif::ProgressBar;
 
 use crate::{
     gitlab::{api::Api, models::Visibility},
-    progress_bar::style_progress_bar,
     repositories::{NewRepository, RepositoryService},
+    utils::progress_bar::style_progress_bar,
 };
 
 pub struct GitLabUpdaterService<'a> {
