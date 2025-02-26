@@ -1,4 +1,3 @@
-use indoc::indoc;
 use model::GroupProjectsResponse;
 use reqwest::{
     Client,
@@ -36,7 +35,7 @@ impl Api {
         group: &str,
         after: Option<&str>,
     ) -> Result<GroupProjectsResponse, reqwest::Error> {
-        let query = indoc! {"
+        let query = r#"
             query GetGroupProjects($group: ID!, $after: String) {
                 group(fullPath: $group) {
                     projects(includeSubgroups: true, after: $after) {
@@ -72,7 +71,7 @@ impl Api {
                     }
                 }
             }
-        "};
+        "#;
 
         let variables = if let Some(after) = after {
             json!({ "group": group, "after": after })
