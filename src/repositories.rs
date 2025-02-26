@@ -16,13 +16,13 @@ pub struct Repository {
     #[tabled(skip)]
     pub source: String,
 
-    #[tabled(skip)]
+    #[tabled(format("{}/{}", self.namespace, self.name))]
     pub name: String,
 
     #[tabled(skip)]
     pub namespace: String,
 
-    #[tabled(rename = "url")]
+    #[tabled(skip)]
     pub web_url: String,
 
     #[tabled(skip)]
@@ -45,7 +45,11 @@ pub struct Repository {
 
     pub size: i64,
     pub commit_count: i64,
+
+    #[tabled(skip)]
     pub forks_count: i64,
+
+    #[tabled(skip)]
     pub private: bool,
     pub archived: bool,
 }
