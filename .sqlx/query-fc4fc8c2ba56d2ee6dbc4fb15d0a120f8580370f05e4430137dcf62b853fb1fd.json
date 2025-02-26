@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT\n                COUNT(*) as total_repos,\n                (SELECT name FROM repositories WHERE archived = FALSE ORDER BY size DESC LIMIT 1) as largest_repo,\n                (SELECT name FROM repositories WHERE archived = FALSE ORDER BY commit_count DESC LIMIT 1) as most_active_repo\n            FROM repositories\n            WHERE archived = FALSE\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "total_repos",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "largest_repo",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "most_active_repo",
+        "ordinal": 2,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "fc4fc8c2ba56d2ee6dbc4fb15d0a120f8580370f05e4430137dcf62b853fb1fd"
+}

@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            INSERT INTO repository_languages (repository_id, language_id, percentage)\n            VALUES (?, ?, ?)\n            ON CONFLICT (repository_id, language_id)\n            DO UPDATE SET percentage = excluded.percentage\n            RETURNING repository_id, language_id, percentage\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "repository_id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "language_id",
+        "ordinal": 1,
+        "type_info": "Integer"
+      },
+      {
+        "name": "percentage",
+        "ordinal": 2,
+        "type_info": "Float"
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "6a49f4464aa1e0c704df6df33fb2d237e0f72b1e47cd0dbc5e7a82d39bd71b10"
+}
