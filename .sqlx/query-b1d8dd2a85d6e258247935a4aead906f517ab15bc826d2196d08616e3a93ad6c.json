@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            INSERT INTO repository_languages (repository_id, language_id, percentage)\n            VALUES (?, ?, ?)\n            ON CONFLICT (repository_id, language_id)\n            DO UPDATE SET percentage = excluded.percentage\n            RETURNING repository_id, language_id, percentage\n            ",
+  "query": "\n        INSERT INTO repository_languages (repository_id, language_id, percentage)\n        VALUES (?, ?, ?)\n        ON CONFLICT (repository_id, language_id)\n        DO UPDATE SET percentage = excluded.percentage\n        RETURNING repository_id, language_id, percentage\n        ",
   "describe": {
     "columns": [
       {
@@ -28,5 +28,5 @@
       false
     ]
   },
-  "hash": "6a49f4464aa1e0c704df6df33fb2d237e0f72b1e47cd0dbc5e7a82d39bd71b10"
+  "hash": "b1d8dd2a85d6e258247935a4aead906f517ab15bc826d2196d08616e3a93ad6c"
 }

@@ -1,8 +1,17 @@
-use clap::{Parser, Subcommand};
-use devsec::{
-    db::init_db, gitlab::updater::GitLabUpdaterService, repositories::RepositoryService,
-    statistics::StatisticsService,
+mod datadog;
+mod db;
+mod gitlab;
+mod repositories;
+mod statistics;
+mod utils;
+mod vulnerabilities;
+
+use crate::{
+    datadog::process_csv, db::init_db, gitlab::updater::GitLabUpdaterService,
+    repositories::search_repositories, statistics::get_repository_statistics,
 };
+use clap::{Parser, Subcommand};
+use sqlx::SqlitePool;
 use std::error::Error;
 use tabled::{
     Table,
@@ -21,6 +30,10 @@ enum Commands {
     Update {
         #[command(subcommand)]
         service: UpdateServices,
+    },
+    Import {
+        #[command(subcommand)]
+        service: ImportServices,
     },
     Stats {
         #[arg(long, help = "Return stats as JSON")]
@@ -57,38 +70,44 @@ enum UpdateServices {
     },
 }
 
+#[derive(Subcommand)]
+enum ImportServices {
+    Datadog {
+        #[arg(short, long, value_name = "Input file", help = "File to read from")]
+        input: String,
+
+        #[arg(short, long, value_name = "GitLab group id")]
+        group_id: String,
+    },
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
     let pool = init_db().await?;
 
-    let repository_service = RepositoryService::new(&pool);
-    let statistics_service = StatisticsService::new(&pool);
-
     match cli.command {
-        Some(Commands::Update { service }) => update(service, repository_service).await?,
-        Some(Commands::Stats { json }) => stats(statistics_service, json).await?,
+        Some(Commands::Update { service }) => update(&pool, service).await?,
+        Some(Commands::Import { service }) => import(&pool, service).await?,
+        Some(Commands::Stats { json }) => stats(&pool, json).await?,
         Some(Commands::Search {
             query,
             json,
             include_archived,
             limit,
-        }) => search(repository_service, &query, json, include_archived, limit).await?,
+        }) => search(&pool, &query, json, include_archived, limit).await?,
         None => {}
     };
 
     Ok(())
 }
 
-async fn update(
-    service: UpdateServices,
-    repos: RepositoryService<'_>,
-) -> Result<(), Box<dyn Error>> {
+async fn update(pool: &SqlitePool, service: UpdateServices) -> Result<(), Box<dyn Error>> {
     match service {
         UpdateServices::Gitlab { auth, group_id } => {
-            let gitlab_updater = GitLabUpdaterService::new(&auth, &group_id, &repos);
+            let gitlab_updater = GitLabUpdaterService::new(&auth, &group_id);
 
-            if let Err(e) = gitlab_updater.update().await {
+            if let Err(e) = gitlab_updater.update(pool).await {
                 eprintln!(
                     "❌ Error updating GitLab data: {}\n🔍 Cause: {:?}",
                     e,
@@ -100,11 +119,17 @@ async fn update(
     Ok(())
 }
 
-async fn stats(
-    statistics_service: StatisticsService<'_>,
-    json: bool,
-) -> Result<(), Box<dyn Error>> {
-    let data = statistics_service.get_repository_statistics().await?;
+async fn import(pool: &SqlitePool, service: ImportServices) -> Result<(), Box<dyn Error>> {
+    match service {
+        ImportServices::Datadog { input, group_id } => {
+            process_csv(pool, &input, &group_id).await?;
+        }
+    }
+    Ok(())
+}
+
+async fn stats(pool: &SqlitePool, json: bool) -> Result<(), Box<dyn Error>> {
+    let data = get_repository_statistics(pool).await?;
 
     if json {
         println!("{}", serde_json::to_string(&data)?);
@@ -119,15 +144,13 @@ async fn stats(
 }
 
 async fn search(
-    repository_service: RepositoryService<'_>,
+    pool: &SqlitePool,
     query: &str,
     json: bool,
     include_archived: bool,
     limit: i64,
 ) -> Result<(), Box<dyn Error>> {
-    let data = repository_service
-        .search_repositories(query, include_archived, limit)
-        .await?;
+    let data = search_repositories(pool, query, include_archived, limit).await?;
 
     if json {
         println!("{}", serde_json::to_string(&data)?);

@@ -36,8 +36,8 @@ impl Api {
         after: Option<&str>,
     ) -> Result<GroupProjectsResponse, reqwest::Error> {
         let query = r#"
-            query GetGroupProjects($group: ID!, $after: String) {
-                group(fullPath: $group) {
+            query GetGroupProjects($group_id: ID!, $after: String) {
+                group(fullPath: $group_id) {
                     projects(includeSubgroups: true, after: $after) {
                         count
                         pageInfo {
@@ -46,7 +46,7 @@ impl Api {
                         }
                         nodes {
                             id
-                            name
+                            fullPath
                             description
                             archived
                             updatedAt
@@ -64,9 +64,6 @@ impl Api {
                                 repositorySize
                                 commitCount
                             }
-                            namespace {
-                                fullPath
-                            }
                         }
                     }
                 }
@@ -74,9 +71,9 @@ impl Api {
         "#;
 
         let variables = if let Some(after) = after {
-            json!({ "group": group, "after": after })
+            json!({ "group_id": group, "after": after })
         } else {
-            json!({ "group": group })
+            json!({ "group_id": group })
         };
 
         let data = json!({ "query": query, "variables": variables });
@@ -129,9 +126,8 @@ pub mod model {
     #[serde(rename_all = "camelCase")]
     pub struct Project {
         pub id: String,
-        pub name: String,
+        pub full_path: String,
         pub description: Option<String>,
-        pub namespace: Namespace,
         pub web_url: String,
         pub ssh_url_to_repo: String,
         pub forks_count: i64,
@@ -145,12 +141,6 @@ pub mod model {
         pub visibility: Visibility,
         pub languages: Vec<RepositoryLanguage>,
         pub statistics: ProjectStatistics,
-    }
-
-    #[derive(Deserialize, Serialize, Debug)]
-    #[serde(rename_all = "camelCase")]
-    pub struct Namespace {
-        pub full_path: String,
     }
 
     #[derive(Deserialize, Serialize, Debug)]

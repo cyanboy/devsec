@@ -1,0 +1,44 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            INSERT INTO vulnerabilities (name, severity , cve, cvss_score)\n            VALUES ( ?, ?, ?, ? )\n            ON CONFLICT (cve) DO UPDATE\n            SET\n                name = name,\n                severity = severity,\n                cvss_score = cvss_score\n            RETURNING\n                id,\n                name,\n                severity as \"severity: _\",\n                cve,\n                cvss_score\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "name",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "severity: _",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "cve",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "cvss_score",
+        "ordinal": 4,
+        "type_info": "Float"
+      }
+    ],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "8581d08016c521dc23d1291def1be50c866dadadb040bd2cde695a798b13b282"
+}

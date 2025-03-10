@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT\n                languages.language_name,\n                COUNT(DISTINCT repository_languages.language_id) as unique_languages\n            FROM repository_languages\n            JOIN languages ON repository_languages.language_id = languages.id\n            JOIN repositories ON repository_languages.repository_id = repositories.id\n            WHERE repositories.archived = FALSE\n            GROUP BY languages.language_name\n            ORDER BY SUM(repository_languages.percentage) DESC\n            LIMIT 1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "language_name",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "unique_languages",
+        "ordinal": 1,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "0494a4971f92f7938ff0a1080587d5870a85503945110fb5c0d6d2b0af59a357"
+}

@@ -1,0 +1,104 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT\n            repo.id,\n            repo.external_id,\n            repo.source,\n            repo.path,\n            repo.description,\n            repo.created_at as \"created_at: _\",\n            repo.updated_at as \"updated_at: _\",\n            repo.pushed_at as \"pushed_at: _\",\n            repo.ssh_url,\n            repo.web_url,\n            repo.private,\n            repo.forks_count,\n            repo.archived,\n            repo.size,\n            repo.commit_count\n        FROM repositories repo\n        WHERE repo.path = ?\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "external_id",
+        "ordinal": 1,
+        "type_info": "Integer"
+      },
+      {
+        "name": "source",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "path",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "description",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_at: _",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "updated_at: _",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "pushed_at: _",
+        "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "ssh_url",
+        "ordinal": 8,
+        "type_info": "Text"
+      },
+      {
+        "name": "web_url",
+        "ordinal": 9,
+        "type_info": "Text"
+      },
+      {
+        "name": "private",
+        "ordinal": 10,
+        "type_info": "Bool"
+      },
+      {
+        "name": "forks_count",
+        "ordinal": 11,
+        "type_info": "Integer"
+      },
+      {
+        "name": "archived",
+        "ordinal": 12,
+        "type_info": "Bool"
+      },
+      {
+        "name": "size",
+        "ordinal": 13,
+        "type_info": "Integer"
+      },
+      {
+        "name": "commit_count",
+        "ordinal": 14,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "0812e4560269f96180d843ae8f1dab62c30405aa9d9c416fa19cffcae152fe47"
+}

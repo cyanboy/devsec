@@ -1,10 +1,10 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT COUNT(*) public_count FROM repositories WHERE private = FALSE\n            ",
+  "query": "\n        SELECT COUNT(*) private_count FROM repositories WHERE private = TRUE\n        ",
   "describe": {
     "columns": [
       {
-        "name": "public_count",
+        "name": "private_count",
         "ordinal": 0,
         "type_info": "Integer"
       }
@@ -16,5 +16,5 @@
       false
     ]
   },
-  "hash": "ec4a110ac677a7bcdc0a6a896fe62d36babace9699a2e4460558031701f23366"
+  "hash": "78a3ff99b5d0409cd29c9b6175ac9724586b79da97f2abb2d1aace98a2adf378"
 }

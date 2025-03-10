@@ -1,36 +1,28 @@
 use std::error::Error;
 
 use indicatif::ProgressBar;
+use sqlx::SqlitePool;
 
 use crate::{
     gitlab::api::{Api, model::Visibility},
-    repositories::{NewRepository, RepositoryService},
+    repositories::{NewRepository, insert_language, insert_repository, insert_repository_language},
     utils::progress_bar::style_progress_bar,
 };
 
-pub struct GitLabUpdaterService<'a> {
+pub struct GitLabUpdaterService {
     api: Api,
     group: String,
-    repository_service: &'a RepositoryService<'a>,
 }
 
-impl<'a> GitLabUpdaterService<'a> {
-    pub fn new(
-        gitlab_token: &str,
-        group_id: &str,
-        repository_service: &'a RepositoryService,
-    ) -> Self {
+impl GitLabUpdaterService {
+    pub fn new(gitlab_token: &str, group_id: &str) -> Self {
         let api = Api::new(gitlab_token);
         let group = group_id.to_string();
 
-        Self {
-            api,
-            group,
-            repository_service,
-        }
+        Self { api, group }
     }
 
-    pub async fn update(&self) -> Result<(), Box<dyn Error>> {
+    pub async fn update(&self, pool: &SqlitePool) -> Result<(), Box<dyn Error>> {
         let progress_bar = ProgressBar::no_length();
 
         let mut response = self
@@ -73,8 +65,7 @@ impl<'a> GitLabUpdaterService<'a> {
                 let new_repository = NewRepository {
                     external_id,
                     source,
-                    name: project.name,
-                    namespace: project.namespace.full_path,
+                    path: project.full_path,
                     description: project.description,
                     created_at: project.created_at,
                     updated_at: project.updated_at,
@@ -88,30 +79,15 @@ impl<'a> GitLabUpdaterService<'a> {
                     commit_count: project.statistics.commit_count as i64,
                 };
 
-                let mut tx = self.repository_service.begin_transaction().await?;
-
-                let repo = self
-                    .repository_service
-                    .insert_repository_and_verify(&mut tx, new_repository)
-                    .await?;
+                let repo = insert_repository(pool, new_repository).await?;
 
                 for project_language in &project.languages {
-                    let language = self
-                        .repository_service
-                        .insert_language_and_verify(&mut tx, &project_language.name)
-                        .await?;
+                    let language = insert_language(pool, &project_language.name).await?;
 
-                    self.repository_service
-                        .insert_repository_language_and_verify(
-                            &mut tx,
-                            repo.id,
-                            language.id,
-                            project_language.share,
-                        )
+                    insert_repository_language(pool, repo.id, language.id, project_language.share)
                         .await?;
                 }
 
-                tx.commit().await?;
                 progress_bar.inc(1);
             }
 
