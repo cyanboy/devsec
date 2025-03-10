@@ -1,4 +1,4 @@
-use sqlx::{Sqlite, SqlitePool, Transaction};
+use sqlx::SqlitePool;
 
 #[derive(Debug)]
 pub struct NewVulnerability {
