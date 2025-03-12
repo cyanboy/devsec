@@ -1,17 +1,40 @@
+use async_trait::async_trait;
 use sqlx::SqlitePool;
 
 use crate::domain::repository::{Codebase, CodebaseLanguage, NewCodebase, ProgrammingLanguage};
 
-pub struct CodebaseRepository<'a> {
-    pool: &'a SqlitePool,
+#[async_trait]
+pub trait CodebaseRepository {
+    async fn save(&self, new_codebase: NewCodebase) -> Result<Codebase, sqlx::Error>;
+    async fn add_language(
+        &self,
+        codebase: &Codebase,
+        lang: (&str, f64),
+    ) -> Result<CodebaseLanguage, sqlx::Error>;
+    async fn count(&self) -> Result<i64, sqlx::Error>;
+    async fn find_all(&self) -> Result<Vec<Codebase>, sqlx::Error>;
+    async fn find_by_id(&self, id: i64) -> Result<Option<Codebase>, sqlx::Error>;
+    async fn search(
+        &self,
+        query: &str,
+        include_archived: bool,
+        limit: i64,
+    ) -> Result<Vec<Codebase>, sqlx::Error>;
 }
 
-impl<'a> CodebaseRepository<'a> {
-    pub fn new(pool: &'a SqlitePool) -> Self {
+pub struct SqliteCodebaseRepository {
+    pool: SqlitePool,
+}
+
+impl SqliteCodebaseRepository {
+    pub fn new(pool: SqlitePool) -> Self {
         Self { pool }
     }
+}
 
-    pub async fn save(&self, new_codebase: NewCodebase) -> Result<Codebase, sqlx::Error> {
+#[async_trait]
+impl CodebaseRepository for SqliteCodebaseRepository {
+    async fn save(&self, new_codebase: NewCodebase) -> Result<Codebase, sqlx::Error> {
         sqlx::query_as!(
             Codebase,
             r#"
@@ -72,19 +95,19 @@ impl<'a> CodebaseRepository<'a> {
             new_codebase.size,
             new_codebase.commit_count,
         )
-        .fetch_one(self.pool)
+        .fetch_one(&self.pool)
         .await
     }
 
-    pub async fn count(&self) -> Result<i64, sqlx::Error> {
+    async fn count(&self) -> Result<i64, sqlx::Error> {
         let row = sqlx::query!(r#"SELECT COUNT(id) as count FROM codebases"#)
-            .fetch_one(self.pool)
+            .fetch_one(&self.pool)
             .await?;
 
         Ok(row.count)
     }
 
-    pub async fn find_all(&self) -> Result<Vec<Codebase>, sqlx::Error> {
+    async fn find_all(&self) -> Result<Vec<Codebase>, sqlx::Error> {
         sqlx::query_as!(
             Codebase,
             r#"
@@ -105,11 +128,11 @@ impl<'a> CodebaseRepository<'a> {
             FROM codebases
             "#
         )
-        .fetch_all(self.pool)
+        .fetch_all(&self.pool)
         .await
     }
 
-    pub async fn find_by_id(&self, id: i64) -> Result<Option<Codebase>, sqlx::Error> {
+    async fn find_by_id(&self, id: i64) -> Result<Option<Codebase>, sqlx::Error> {
         sqlx::query_as!(
             Codebase,
             r#"
@@ -131,11 +154,11 @@ impl<'a> CodebaseRepository<'a> {
             "#,
             id
         )
-        .fetch_optional(self.pool)
+        .fetch_optional(&self.pool)
         .await
     }
 
-    pub async fn add_language(
+    async fn add_language(
         &self,
         codebase: &Codebase,
         lang: (&str, f64),
@@ -181,7 +204,7 @@ impl<'a> CodebaseRepository<'a> {
         Ok(codebase_language)
     }
 
-    pub async fn search(
+    async fn search(
         &self,
         query: &str,
         include_archived: bool,
@@ -215,7 +238,7 @@ impl<'a> CodebaseRepository<'a> {
             include_archived,
             limit,
         )
-        .fetch_all(self.pool)
+        .fetch_all(&self.pool)
         .await?;
 
         Ok(results)

@@ -492,6 +492,7 @@ dependencies = [
 name = "devsec"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "clap",
  "config",
  "confy",

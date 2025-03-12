@@ -8,7 +8,7 @@ use clap::{Parser, Subcommand};
 use domain::statistics::get_repository_statistics;
 use error::AppError;
 use infrastructure::{api::gitlab::client::GitLabClient, db::connection::init_db};
-use repository::codebase_repository::CodebaseRepository;
+use repository::codebase_repository::{CodebaseRepository, SqliteCodebaseRepository};
 use service::codebase_service::CodebaseService;
 use sqlx::SqlitePool;
 use tabled::{
@@ -29,10 +29,10 @@ enum Commands {
         #[command(subcommand)]
         service: UpdateServices,
     },
-    Stats {
-        #[arg(long, help = "Return stats as JSON")]
-        json: bool,
-    },
+    // Stats {
+    //     #[arg(long, help = "Return stats as JSON")]
+    //     json: bool,
+    // },
     Search {
         #[arg(short, long, value_name = "search query")]
         query: String,
@@ -69,11 +69,11 @@ async fn main() -> Result<(), AppError> {
     let cli = Cli::parse();
     let pool = init_db().await?;
 
-    let codebase_repository = CodebaseRepository::new(&pool);
+    let codebase_repository = Box::new(SqliteCodebaseRepository::new(pool));
 
     match cli.command {
         Some(Commands::Update { service }) => update(codebase_repository, service).await?,
-        Some(Commands::Stats { json }) => stats(&pool, json).await?,
+        //Some(Commands::Stats { json }) => stats(&pool, json).await?,
         Some(Commands::Search {
             query,
             json,
@@ -87,7 +87,7 @@ async fn main() -> Result<(), AppError> {
 }
 
 async fn update(
-    codebase_repository: CodebaseRepository<'_>,
+    codebase_repository: Box<dyn CodebaseRepository>,
     service: UpdateServices,
 ) -> Result<(), AppError> {
     match service {
@@ -116,7 +116,7 @@ async fn stats(pool: &SqlitePool, json: bool) -> Result<(), AppError> {
 }
 
 async fn search(
-    codebase_repository: CodebaseRepository<'_>,
+    codebase_repository: Box<dyn CodebaseRepository>,
     query: &str,
     json: bool,
     include_archived: bool,
