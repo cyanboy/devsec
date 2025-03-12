@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT\n                COUNT(*) as total_repos,\n                (SELECT path FROM repositories WHERE archived = FALSE ORDER BY size DESC LIMIT 1) as largest_repo,\n                (SELECT path FROM repositories WHERE archived = FALSE ORDER BY commit_count DESC LIMIT 1) as most_active_repo\n            FROM repositories\n            WHERE archived = FALSE\n            ",
+  "query": "\n            SELECT\n                COUNT(*) as total_repos,\n                (SELECT path FROM codebases WHERE archived = FALSE ORDER BY size DESC LIMIT 1) as largest_repo,\n                (SELECT path FROM codebases WHERE archived = FALSE ORDER BY commit_count DESC LIMIT 1) as most_active_repo\n            FROM codebases\n            WHERE archived = FALSE\n            ",
   "describe": {
     "columns": [
       {
@@ -28,5 +28,5 @@
       true
     ]
   },
-  "hash": "a1f9943e22bc90099bc35eb1b20a09aa58c1e18356bd7989e610477d7689be1a"
+  "hash": "d17aa7fd58ef302c371bb886f8fd090601648251a5cc0eda9aea011224b4150d"
 }

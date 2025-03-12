@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n        SELECT path FROM repositories WHERE archived = FALSE ORDER BY created_at DESC LIMIT 1;\n        ",
+  "query": "\n        SELECT path FROM codebases WHERE archived = FALSE ORDER BY created_at DESC LIMIT 1;\n        ",
   "describe": {
     "columns": [
       {
@@ -16,5 +16,5 @@
       false
     ]
   },
-  "hash": "61c388048049dca2c5792be341c70942c295f29151c2fae0d4cb8f89eea3a11a"
+  "hash": "06203cca11efd0500d0ce0a2e3fb4e3534f2a903fc6a35c77c3333d9bb44f882"
 }

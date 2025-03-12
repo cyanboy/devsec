@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n        SELECT\n            repo.id,\n            repo.external_id,\n            repo.source,\n            repo.path,\n            repo.description,\n            repo.created_at as \"created_at: _\",\n            repo.updated_at as \"updated_at: _\",\n            repo.pushed_at as \"pushed_at: _\",\n            repo.ssh_url,\n            repo.web_url,\n            repo.private,\n            repo.forks_count,\n            repo.archived,\n            repo.size,\n            repo.commit_count\n        FROM repositories repo\n        JOIN repositories_fts ON repositories_fts.rowid = repo.id\n        WHERE repositories_fts MATCH ?\n        AND (CASE WHEN ? THEN 1 ELSE repo.archived = FALSE END)\n        ORDER BY bm25(repositories_fts)\n        LIMIT ?\n        ",
+  "query": "\n            SELECT\n                c.id,\n                c.external_id,\n                c.source,\n                c.path,\n                c.description,\n                c.created_at as \"created_at: _\",\n                c.updated_at as \"updated_at: _\",\n                c.pushed_at as \"pushed_at: _\",\n                c.web_url,\n                c.private,\n                c.archived,\n                c.size,\n                c.commit_count\n            FROM codebases c\n            JOIN codebases_fts ON codebases_fts.rowid = c.id\n            WHERE codebases_fts LIKE '%' + ? + '%'\n            AND (CASE WHEN ? THEN 1 ELSE c.archived = FALSE END)\n            ORDER BY bm25(codebases_fts)\n            LIMIT ?\n            ",
   "describe": {
     "columns": [
       {
@@ -44,38 +44,28 @@
         "type_info": "Text"
       },
       {
-        "name": "ssh_url",
+        "name": "web_url",
         "ordinal": 8,
         "type_info": "Text"
       },
       {
-        "name": "web_url",
+        "name": "private",
         "ordinal": 9,
-        "type_info": "Text"
+        "type_info": "Bool"
       },
       {
-        "name": "private",
+        "name": "archived",
         "ordinal": 10,
         "type_info": "Bool"
       },
       {
-        "name": "forks_count",
+        "name": "size",
         "ordinal": 11,
         "type_info": "Integer"
       },
       {
-        "name": "archived",
-        "ordinal": 12,
-        "type_info": "Bool"
-      },
-      {
-        "name": "size",
-        "ordinal": 13,
-        "type_info": "Integer"
-      },
-      {
         "name": "commit_count",
-        "ordinal": 14,
+        "ordinal": 12,
         "type_info": "Integer"
       }
     ],
@@ -95,10 +85,8 @@
       false,
       false,
       false,
-      false,
-      false,
       false
     ]
   },
-  "hash": "77b2b3dc5358df9a5fe6280a93fcbe4d628a49adbff0b0a2613bb349e199a433"
+  "hash": "9baa64a9b48e1ce412a5357225fd52d406b5b5df3b2cfe069439a15633da3de9"
 }

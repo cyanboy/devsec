@@ -1,10 +1,10 @@
 {
   "db_name": "SQLite",
-  "query": "\n        SELECT COUNT(*) private_count FROM repositories WHERE private = TRUE\n        ",
+  "query": "SELECT COUNT(id) as count FROM codebases",
   "describe": {
     "columns": [
       {
-        "name": "private_count",
+        "name": "count",
         "ordinal": 0,
         "type_info": "Integer"
       }
@@ -16,5 +16,5 @@
       false
     ]
   },
-  "hash": "78a3ff99b5d0409cd29c9b6175ac9724586b79da97f2abb2d1aace98a2adf378"
+  "hash": "3934a5e643cb4bf97b0c8eb141aa040f82579634101ed6a31bdb4803d571316d"
 }

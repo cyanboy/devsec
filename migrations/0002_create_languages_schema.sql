@@ -1,13 +1,13 @@
-CREATE TABLE languages (
+CREATE TABLE programming_languages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    language_name TEXT UNIQUE NOT NULL
+    name TEXT UNIQUE NOT NULL
 );
 
-CREATE TABLE repository_languages (
-    repository_id INTEGER NOT NULL,
+CREATE TABLE codebase_languages (
+    codebase_id INTEGER NOT NULL,
     language_id INTEGER NOT NULL,
     percentage REAL NOT NULL,
-    PRIMARY KEY (repository_id, language_id),
-    FOREIGN KEY (repository_id) REFERENCES repositories (id) ON DELETE CASCADE,
-    FOREIGN KEY (language_id) REFERENCES languages (id) ON DELETE CASCADE
+    PRIMARY KEY (codebase_id, language_id),
+    FOREIGN KEY (codebase_id) REFERENCES codebases (id) ON DELETE CASCADE,
+    FOREIGN KEY (language_id) REFERENCES programming_languages (id) ON DELETE CASCADE
 );

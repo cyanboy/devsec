@@ -17,9 +17,9 @@ pub async fn get_repository_statistics(pool: &SqlitePool) -> Result<RepoStats, s
             r#"
             SELECT
                 COUNT(*) as total_repos,
-                (SELECT path FROM repositories WHERE archived = FALSE ORDER BY size DESC LIMIT 1) as largest_repo,
-                (SELECT path FROM repositories WHERE archived = FALSE ORDER BY commit_count DESC LIMIT 1) as most_active_repo
-            FROM repositories
+                (SELECT path FROM codebases WHERE archived = FALSE ORDER BY size DESC LIMIT 1) as largest_repo,
+                (SELECT path FROM codebases WHERE archived = FALSE ORDER BY commit_count DESC LIMIT 1) as most_active_repo
+            FROM codebases
             WHERE archived = FALSE
             "#
         ).fetch_one(pool)
@@ -28,20 +28,20 @@ pub async fn get_repository_statistics(pool: &SqlitePool) -> Result<RepoStats, s
     let most_used_language = sqlx::query!(
         r#"
             SELECT
-                languages.language_name,
-                COUNT(DISTINCT repository_languages.language_id) as unique_languages
-            FROM repository_languages
-            JOIN languages ON repository_languages.language_id = languages.id
-            JOIN repositories ON repository_languages.repository_id = repositories.id
-            WHERE repositories.archived = FALSE
-            GROUP BY languages.language_name
-            ORDER BY SUM(repository_languages.percentage) DESC
+                programming_languages.name,
+                COUNT(DISTINCT codebase_languages.language_id) as unique_languages
+            FROM codebase_languages
+            JOIN programming_languages ON codebase_languages.language_id = programming_languages.id
+            JOIN codebases ON codebase_languages.codebase_id = codebases.id
+            WHERE codebases.archived = FALSE
+            GROUP BY programming_languages.name
+            ORDER BY SUM(codebase_languages.percentage) DESC
             LIMIT 1
             "#
     )
     .fetch_optional(pool)
     .await?
-    .map(|row| row.language_name)
+    .map(|row| row.name)
     .unwrap_or_else(|| "Unknown".to_string());
 
     let private_repo_count = get_private_repo_count(pool).await?;
@@ -62,7 +62,7 @@ pub async fn get_repository_statistics(pool: &SqlitePool) -> Result<RepoStats, s
 async fn get_private_repo_count(pool: &SqlitePool) -> Result<i64, sqlx::Error> {
     Ok(sqlx::query!(
         r#"
-        SELECT COUNT(*) private_count FROM repositories WHERE private = TRUE
+        SELECT COUNT(*) private_count FROM codebases WHERE private = TRUE
         "#
     )
     .fetch_one(pool)
@@ -73,7 +73,7 @@ async fn get_private_repo_count(pool: &SqlitePool) -> Result<i64, sqlx::Error> {
 async fn get_public_repo_count(pool: &SqlitePool) -> Result<i64, sqlx::Error> {
     Ok(sqlx::query!(
         r#"
-        SELECT COUNT(*) public_count FROM repositories WHERE private = FALSE
+        SELECT COUNT(*) public_count FROM codebases WHERE private = FALSE
         "#
     )
     .fetch_one(pool)
@@ -84,7 +84,7 @@ async fn get_public_repo_count(pool: &SqlitePool) -> Result<i64, sqlx::Error> {
 async fn get_newest_repo(pool: &SqlitePool) -> Result<String, sqlx::Error> {
     Ok(sqlx::query!(
         r#"
-        SELECT path FROM repositories WHERE archived = FALSE ORDER BY created_at DESC LIMIT 1;
+        SELECT path FROM codebases WHERE archived = FALSE ORDER BY created_at DESC LIMIT 1;
         "#
     )
     .fetch_one(pool)

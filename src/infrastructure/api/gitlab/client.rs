@@ -1,17 +1,16 @@
 use model::GroupProjectsResponse;
-use reqwest::{
-    Client,
-    header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue},
-};
+use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue};
 use serde_json::json;
+
+use crate::error::AppError;
 
 const GITLAB_GRAPHQL_URL: &str = "https://gitlab.com/api/graphql";
 
-pub struct Api {
-    client: Client,
+pub struct GitLabClient {
+    client: reqwest::Client,
 }
 
-impl Api {
+impl GitLabClient {
     pub fn new(token: &str) -> Self {
         let mut headers = HeaderMap::new();
 
@@ -22,7 +21,7 @@ impl Api {
             eprintln!("Could not set Authorization header");
         }
 
-        let client = Client::builder()
+        let client = reqwest::Client::builder()
             .default_headers(headers)
             .build()
             .expect("Failed to create HTTP client");
@@ -34,7 +33,7 @@ impl Api {
         &self,
         group: &str,
         after: Option<&str>,
-    ) -> Result<GroupProjectsResponse, reqwest::Error> {
+    ) -> Result<GroupProjectsResponse, AppError> {
         let query = r#"
             query GetGroupProjects($group_id: ID!, $after: String) {
                 group(fullPath: $group_id) {
@@ -70,10 +69,9 @@ impl Api {
             }
         "#;
 
-        let variables = if let Some(after) = after {
-            json!({ "group_id": group, "after": after })
-        } else {
-            json!({ "group_id": group })
+        let variables = match after {
+            Some(after) => json!({ "group_id": group, "after": after }),
+            None => json!({ "group_id": group }),
         };
 
         let data = json!({ "query": query, "variables": variables });
@@ -90,7 +88,7 @@ impl Api {
         Ok(json)
     }
 
-    pub async fn get_projects(&self, group: &str) -> Result<GroupProjectsResponse, reqwest::Error> {
+    pub async fn get_projects(&self, group: &str) -> Result<GroupProjectsResponse, AppError> {
         self.get_projects_after(group, None).await
     }
 }
@@ -117,7 +115,7 @@ pub mod model {
     #[derive(Serialize, Deserialize, Debug)]
     #[serde(rename_all = "camelCase")]
     pub struct ProjectConnection {
-        pub count: u64,
+        pub count: i64,
         pub page_info: PageInfo,
         pub nodes: Vec<Project>,
     }
@@ -154,14 +152,14 @@ pub mod model {
     #[derive(Serialize, Deserialize, Debug)]
     pub struct RepositoryLanguage {
         pub name: String,
-        pub share: f32,
+        pub share: f64,
     }
 
     #[derive(Serialize, Deserialize, Debug)]
     #[serde(rename_all = "camelCase")]
     pub struct ProjectStatistics {
-        pub repository_size: f32,
-        pub commit_count: f32,
+        pub repository_size: f64,
+        pub commit_count: f64,
     }
 
     #[derive(Serialize, Deserialize, Debug)]

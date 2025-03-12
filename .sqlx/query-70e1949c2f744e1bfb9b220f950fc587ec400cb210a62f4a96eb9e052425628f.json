@@ -1,0 +1,92 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            INSERT INTO codebases\n            (\n                external_id,\n                source,\n                path,\n                description,\n                created_at,\n                updated_at,\n                pushed_at,\n                web_url,\n                private,\n                archived,\n                size,\n                commit_count\n            )\n            VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )\n            ON CONFLICT (external_id, source) DO UPDATE\n            SET\n                path = excluded.path,\n                source = excluded.source,\n                description = excluded.description,\n                created_at = excluded.created_at,\n                updated_at = excluded.updated_at,\n                pushed_at = excluded.pushed_at,\n                web_url = excluded.web_url,\n                private = excluded.private,\n                archived = excluded.archived,\n                size = excluded.size,\n                commit_count = excluded.commit_count\n            RETURNING\n                id,\n                external_id,\n                source,\n                path,\n                description,\n                created_at as \"created_at: _\",\n                updated_at as \"updated_at: _\",\n                pushed_at as \"pushed_at: _\",\n                web_url,\n                private,\n                archived,\n                size,\n                commit_count\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "external_id",
+        "ordinal": 1,
+        "type_info": "Integer"
+      },
+      {
+        "name": "source",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "path",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "description",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "created_at: _",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "updated_at: _",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "pushed_at: _",
+        "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "web_url",
+        "ordinal": 8,
+        "type_info": "Text"
+      },
+      {
+        "name": "private",
+        "ordinal": 9,
+        "type_info": "Bool"
+      },
+      {
+        "name": "archived",
+        "ordinal": 10,
+        "type_info": "Bool"
+      },
+      {
+        "name": "size",
+        "ordinal": 11,
+        "type_info": "Integer"
+      },
+      {
+        "name": "commit_count",
+        "ordinal": 12,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 12
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "70e1949c2f744e1bfb9b220f950fc587ec400cb210a62f4a96eb9e052425628f"
+}

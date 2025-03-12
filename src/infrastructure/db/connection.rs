@@ -3,9 +3,11 @@ use sqlx::{
     SqlitePool,
     sqlite::{SqliteConnectOptions, SqlitePoolOptions},
 };
-use std::{error::Error, str::FromStr};
+use std::str::FromStr;
 
-pub async fn init_db() -> Result<SqlitePool, Box<dyn Error>> {
+use crate::error::AppError;
+
+pub async fn init_db() -> Result<SqlitePool, AppError> {
     let proj_dirs = match ProjectDirs::from("", "", "devsec") {
         Some(proj_dirs) => proj_dirs,
         None => {

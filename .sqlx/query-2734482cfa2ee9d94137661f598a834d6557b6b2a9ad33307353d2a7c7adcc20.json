@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT\n                programming_languages.name,\n                COUNT(DISTINCT codebase_languages.language_id) as unique_languages\n            FROM codebase_languages\n            JOIN programming_languages ON codebase_languages.language_id = programming_languages.id\n            JOIN codebases ON codebase_languages.codebase_id = codebases.id\n            WHERE codebases.archived = FALSE\n            GROUP BY programming_languages.name\n            ORDER BY SUM(codebase_languages.percentage) DESC\n            LIMIT 1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "name",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "unique_languages",
+        "ordinal": 1,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "2734482cfa2ee9d94137661f598a834d6557b6b2a9ad33307353d2a7c7adcc20"
+}

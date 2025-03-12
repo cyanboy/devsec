@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            INSERT INTO programming_languages (name)\n            VALUES (?)\n            ON CONFLICT (name)\n            DO UPDATE\n            SET\n                name = excluded.name\n            RETURNING id, name\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "name",
+        "ordinal": 1,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "e88eb9d055fa99fa9550fd18c52fe16c4f7e57bd698e6fd2f419e3b1a87ff26b"
+}

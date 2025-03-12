@@ -1,18 +1,16 @@
-mod datadog;
-mod db;
-mod gitlab;
-mod repositories;
-mod statistics;
-mod utils;
-mod vulnerabilities;
+mod domain;
+mod error;
+mod infrastructure;
+mod repository;
+mod service;
 
-use crate::{
-    datadog::process_csv, db::init_db, gitlab::updater::GitLabUpdaterService,
-    repositories::search_repositories, statistics::get_repository_statistics,
-};
 use clap::{Parser, Subcommand};
+use domain::statistics::get_repository_statistics;
+use error::AppError;
+use infrastructure::{api::gitlab::client::GitLabClient, db::connection::init_db};
+use repository::codebase_repository::CodebaseRepository;
+use service::codebase_service::CodebaseService;
 use sqlx::SqlitePool;
-use std::error::Error;
 use tabled::{
     Table,
     settings::{Rotate, Style},
@@ -30,10 +28,6 @@ enum Commands {
     Update {
         #[command(subcommand)]
         service: UpdateServices,
-    },
-    Import {
-        #[command(subcommand)]
-        service: ImportServices,
     },
     Stats {
         #[arg(long, help = "Return stats as JSON")]
@@ -70,65 +64,43 @@ enum UpdateServices {
     },
 }
 
-#[derive(Subcommand)]
-enum ImportServices {
-    Datadog {
-        #[arg(short, long, value_name = "Input file", help = "File to read from")]
-        input: String,
-
-        #[arg(short, long, value_name = "GitLab group id")]
-        group_id: String,
-    },
-}
-
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+async fn main() -> Result<(), AppError> {
     let cli = Cli::parse();
     let pool = init_db().await?;
 
+    let codebase_repository = CodebaseRepository::new(&pool);
+
     match cli.command {
-        Some(Commands::Update { service }) => update(&pool, service).await?,
-        Some(Commands::Import { service }) => import(&pool, service).await?,
+        Some(Commands::Update { service }) => update(codebase_repository, service).await?,
         Some(Commands::Stats { json }) => stats(&pool, json).await?,
         Some(Commands::Search {
             query,
             json,
             include_archived,
             limit,
-        }) => search(&pool, &query, json, include_archived, limit).await?,
+        }) => search(codebase_repository, &query, json, include_archived, limit).await?,
         None => {}
     };
 
     Ok(())
 }
 
-async fn update(pool: &SqlitePool, service: UpdateServices) -> Result<(), Box<dyn Error>> {
+async fn update(
+    codebase_repository: CodebaseRepository<'_>,
+    service: UpdateServices,
+) -> Result<(), AppError> {
     match service {
         UpdateServices::Gitlab { auth, group_id } => {
-            let gitlab_updater = GitLabUpdaterService::new(&auth, &group_id);
-
-            if let Err(e) = gitlab_updater.update(pool).await {
-                eprintln!(
-                    "❌ Error updating GitLab data: {}\n🔍 Cause: {:?}",
-                    e,
-                    e.source()
-                );
-            }
+            let gitlab_client = GitLabClient::new(&auth);
+            let codebase_service = CodebaseService::new(codebase_repository, gitlab_client);
+            codebase_service.update_from_gitlab(&group_id).await?;
         }
     }
     Ok(())
 }
 
-async fn import(pool: &SqlitePool, service: ImportServices) -> Result<(), Box<dyn Error>> {
-    match service {
-        ImportServices::Datadog { input, group_id } => {
-            process_csv(pool, &input, &group_id).await?;
-        }
-    }
-    Ok(())
-}
-
-async fn stats(pool: &SqlitePool, json: bool) -> Result<(), Box<dyn Error>> {
+async fn stats(pool: &SqlitePool, json: bool) -> Result<(), AppError> {
     let data = get_repository_statistics(pool).await?;
 
     if json {
@@ -144,13 +116,17 @@ async fn stats(pool: &SqlitePool, json: bool) -> Result<(), Box<dyn Error>> {
 }
 
 async fn search(
-    pool: &SqlitePool,
+    codebase_repository: CodebaseRepository<'_>,
     query: &str,
     json: bool,
     include_archived: bool,
     limit: i64,
-) -> Result<(), Box<dyn Error>> {
-    let data = search_repositories(pool, query, include_archived, limit).await?;
+) -> Result<(), AppError> {
+    let gitlab_client = GitLabClient::new("");
+    let codebase_service = CodebaseService::new(codebase_repository, gitlab_client);
+    let data = codebase_service
+        .search(query, include_archived, limit)
+        .await?;
 
     if json {
         println!("{}", serde_json::to_string(&data)?);
